@@ -104,8 +104,8 @@ class VideoScheduler(QMainWindow):
         video1_group = QVBoxLayout()
         video1_header = QHBoxLayout()
         
-        self.video1_label = QLabel('Video 1 (loop): Not selected')
-        self.video1_btn = QPushButton('Select Video 1')
+        self.video1_label = QLabel('Video 1 (slučka): Nevybrané')
+        self.video1_btn = QPushButton('Vybrať Video 1')
         self.video1_btn.clicked.connect(lambda: self.select_video(1))
         
         video1_header.addWidget(self.video1_label)
@@ -116,8 +116,8 @@ class VideoScheduler(QMainWindow):
         video2_group = QVBoxLayout()
         video2_header = QHBoxLayout()
         
-        self.video2_label = QLabel('Video 2: Not selected')
-        self.video2_btn = QPushButton('Select Video 2')
+        self.video2_label = QLabel('Video 2: Nevybrané')
+        self.video2_btn = QPushButton('Vybrať Video 2')
         self.video2_btn.clicked.connect(lambda: self.select_video(2))
         
         video2_header.addWidget(self.video2_label)
@@ -128,23 +128,23 @@ class VideoScheduler(QMainWindow):
         time_layout = QHBoxLayout()
         self.time_edit = QTimeEdit()
         self.time_edit.setDisplayFormat("HH:mm")
-        add_time_btn = QPushButton('Add Time')
+        add_time_btn = QPushButton('Pridať čas spustenia')
         add_time_btn.clicked.connect(self.add_scheduled_time)
         
-        time_layout.addWidget(QLabel('Add schedule time:'))
+        time_layout.addWidget(QLabel('Pridať čas spustenia:'))
         time_layout.addWidget(self.time_edit)
         time_layout.addWidget(add_time_btn)
         
         # Seznam naplánovaných časov
         self.time_list = QListWidget()
-        remove_time_btn = QPushButton('Remove Selected Time')
+        remove_time_btn = QPushButton('Odstrániť vybraný čas')
         remove_time_btn.clicked.connect(self.remove_scheduled_time)
         
         # Ovládacie tlačidlá
         control_layout = QHBoxLayout()
-        self.start_btn = QPushButton('Start')
+        self.start_btn = QPushButton('Spustiť')
         self.start_btn.clicked.connect(self.start_playback)
-        self.stop_btn = QPushButton('Stop')
+        self.stop_btn = QPushButton('Zastaviť')
         self.stop_btn.clicked.connect(self.stop_playback)
         
         control_layout.addWidget(self.start_btn)
@@ -244,40 +244,37 @@ class VideoScheduler(QMainWindow):
         info = self.license_manager.get_license_info()
         
         if info['license_key']:
-            # Má licenciu - overíme ju
             if self.license_manager.is_license_valid(info['license_key'], info['email']):
                 return True
         
-        # Nemá licenciu - skontrolujeme trial
         if self.license_manager.is_trial_valid():
             days_left = 7 - (datetime.now() - datetime.fromisoformat(info['first_run'])).days
-            QMessageBox.information(self, 'Trial Version', 
-                                  f'You are using trial version. {days_left} days remaining.')
+            QMessageBox.information(self, 'Skúšobná verzia', 
+                                  f'Používate skúšobnú verziu. Zostáva {days_left} dní.')
             return True
         
-        # Trial vypršal - požiadame o aktiváciu
         return self.show_activation_dialog()
     
     def show_activation_dialog(self):
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Information)
-        msg.setText("Trial period has expired. Would you like to activate the software?")
+        msg.setText("Skúšobná doba vypršala. Chcete aktivovať softvér?")
         msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         
         if msg.exec_() == QMessageBox.Yes:
-            email, ok = QInputDialog.getText(self, 'Activation', 
-                                           'Enter your email:', QLineEdit.Normal)
+            email, ok = QInputDialog.getText(self, 'Aktivácia', 
+                                           'Zadajte váš email:', QLineEdit.Normal)
             if ok and email:
-                license_key, ok = QInputDialog.getText(self, 'Activation', 
-                                                     'Enter license key:', QLineEdit.Normal)
+                license_key, ok = QInputDialog.getText(self, 'Aktivácia', 
+                                                     'Zadajte licenčný kľúč:', QLineEdit.Normal)
                 if ok and license_key:
                     if self.license_manager.activate_license(license_key, email):
-                        QMessageBox.information(self, 'Success', 
-                                              'Software has been successfully activated!')
+                        QMessageBox.information(self, 'Úspech', 
+                                              'Softvér bol úspešne aktivovaný!')
                         return True
                     else:
-                        QMessageBox.critical(self, 'Error', 
-                                           'Invalid license key!')
+                        QMessageBox.critical(self, 'Chyba', 
+                                           'Neplatný licenčný kľúč!')
         
         return False
 
@@ -346,8 +343,11 @@ class VideoScheduler(QMainWindow):
             return False
 
     def setup_logging(self):
+        # Získanie cesty k priečinku STUDIO na ploche
+        desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
+        log_dir = os.path.join(desktop_path, "STUDIO", "logs")
+        
         # Vytvorenie priečinka pre logy ak neexistuje
-        log_dir = os.path.join(os.path.expanduser("~"), "VideoScheduler_logs")
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
             
@@ -357,11 +357,12 @@ class VideoScheduler(QMainWindow):
             level=logging.INFO,
             format='%(asctime)s - %(levelname)s - %(message)s',
             handlers=[
-                logging.FileHandler(log_file),
+                logging.FileHandler(log_file, encoding='utf-8'),
                 logging.StreamHandler()
             ]
         )
         self.logger = logging.getLogger(__name__)
+        self.logger.info("Aplikácia spustená - inicializácia logovania")
 
     def setup_menu(self):
         menubar = self.menuBar()
@@ -383,13 +384,15 @@ class VideoScheduler(QMainWindow):
             status = "Plná verzia"
         else:
             days_left = 7 - (datetime.now() - datetime.fromisoformat(info['first_run'])).days
-            status = f"Trial verzia ({days_left} dní zostáva)"
+            status = f"Skúšobná verzia (zostáva {days_left} dní)"
             
         QMessageBox.information(self, 'O programe',
                               f'Video Scheduler\n\n'
-                              f'Status: {status}\n'
-                              f'Email: {info["email"] if info["email"] else "Neregistrované"}\n'
-                              f'Verzia: 1.0')
+                              f'Stav: {status}\n'
+                              f'Email: {info["email"] if info["email"] else "Neregistrované"}\n\n'
+                              f'👨‍💻 Kódované s vášňou a kreativitou od Erika\n\n'
+                              f'Version: 1.0\n'
+                              f'Author: Erik Fedor - Trify s.r.o.')
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
