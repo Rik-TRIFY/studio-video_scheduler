@@ -23,7 +23,7 @@ jobs:
       run: |
         Invoke-WebRequest -Uri "https://get.videolan.org/vlc/3.0.18/win64/vlc-3.0.18-win64.zip" -OutFile "vlc.zip"
         Expand-Archive -Path vlc.zip -DestinationPath .
-        dir
+        Get-ChildItem -Recurse vlc-3.0.18
     
     - name: Install dependencies
       run: |
@@ -33,8 +33,22 @@ jobs:
     - name: Build with PyInstaller
       shell: powershell
       run: |
-        $Env:Path += ";$pwd\vlc-3.0.18"
-        pyinstaller --onefile --noconsole --add-data "vlc-3.0.18/libvlc.dll;." --add-data "vlc-3.0.18/libvlccore.dll;." --add-data "vlc-3.0.18/plugins;plugins" --hidden-import PyQt5.sip studio-video_scheduler.py
+        $vlcPath = Join-Path $pwd "vlc-3.0.18"
+        $libvlc = Join-Path $vlcPath "libvlc.dll"
+        $libvlccore = Join-Path $vlcPath "libvlccore.dll"
+        $plugins = Join-Path $vlcPath "plugins"
+        
+        if (!(Test-Path $libvlc) -or !(Test-Path $libvlccore) -or !(Test-Path $plugins)) {
+            Write-Error "VLC files not found at expected locations"
+            exit 1
+        }
+        
+        pyinstaller --onefile --noconsole `
+          --add-data "$libvlc;." `
+          --add-data "$libvlccore;." `
+          --add-data "$plugins;plugins" `
+          --hidden-import PyQt5.sip `
+          studio-video_scheduler.py
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4
