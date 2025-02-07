@@ -11,10 +11,10 @@ jobs:
     runs-on: windows-latest
     
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
       with:
         python-version: '3.9'
     
@@ -29,7 +29,7 @@ jobs:
         pyinstaller --onefile --windowed --name=VideoScheduler --hidden-import=requests studio-video_scheduler.py
     
     - name: Upload artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: VideoScheduler
         path: dist/VideoScheduler.exe
