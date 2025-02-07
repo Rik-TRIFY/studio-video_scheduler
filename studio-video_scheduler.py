@@ -11,6 +11,8 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QPushButton, QWidget,
                             QInputDialog, QLineEdit)
 from PyQt5.QtCore import QTime, QTimer
 from datetime import datetime, timedelta
+import logging
+from PyQt5.QtWidgets import QAction
 
 class LicenseManager:
     def __init__(self):
@@ -58,7 +60,15 @@ class LicenseManager:
 class VideoScheduler(QMainWindow):
     def __init__(self):
         super().__init__()
+        
+        # Nastavenie logovania
+        self.setup_logging()
+        self.logger.info("Aplikácia sa spúšťa")
+        
         self.license_manager = LicenseManager()
+        
+        # Pridáme menu s aktiváciou
+        self.setup_menu()
         
         if not self.check_license():
             sys.exit()
@@ -188,28 +198,40 @@ class VideoScheduler(QMainWindow):
         self.stop_btn.setEnabled(False)
     
     def play_video1(self):
-        media = self.instance.media_new(self.video1_path)
-        self.player.set_media(media)
-        self.player.play()
-        self.current_video = 1
-        
-        # Nastavenie opakovania
-        @media.event_manager().event_attach(vlc.EventType.MediaPlayerEndReached)
-        def replay(event):
-            if self.current_video == 1:
-                self.player.set_position(0)
-                self.player.play()
+        try:
+            self.logger.info("Spúšťam Video 1: %s", self.video1_path)
+            media = self.instance.media_new(self.video1_path)
+            self.player.set_media(media)
+            self.player.play()
+            self.current_video = 1
+            
+            @media.event_manager().event_attach(vlc.EventType.MediaPlayerEndReached)
+            def replay(event):
+                self.logger.info("Video 1 skončilo, prehrávam znova")
+                if self.current_video == 1:
+                    self.player.set_position(0)
+                    self.player.play()
+        except Exception as e:
+            self.logger.error("Chyba pri prehrávaní Video 1: %s", str(e))
+            QMessageBox.critical(self, 'Chyba',
+                               f'Nepodarilo sa prehrať Video 1:\n{str(e)}')
     
     def play_video2(self):
-        self.current_video = 2
-        media = self.instance.media_new(self.video2_path)
-        self.player.set_media(media)
-        self.player.play()
-        
-        # Po skončení video2 sa vrátime k video1
-        @media.event_manager().event_attach(vlc.EventType.MediaPlayerEndReached)
-        def back_to_video1(event):
-            self.play_video1()
+        try:
+            self.logger.info("Spúšťam Video 2: %s", self.video2_path)
+            self.current_video = 2
+            media = self.instance.media_new(self.video2_path)
+            self.player.set_media(media)
+            self.player.play()
+            
+            @media.event_manager().event_attach(vlc.EventType.MediaPlayerEndReached)
+            def back_to_video1(event):
+                self.logger.info("Video 2 skončilo, prepínam na Video 1")
+                self.play_video1()
+        except Exception as e:
+            self.logger.error("Chyba pri prehrávaní Video 2: %s", str(e))
+            QMessageBox.critical(self, 'Chyba',
+                               f'Nepodarilo sa prehrať Video 2:\n{str(e)}')
     
     def check_schedule(self):
         current_time = datetime.now().strftime("%H:%M")
@@ -322,6 +344,52 @@ class VideoScheduler(QMainWindow):
             QMessageBox.critical(self, 'Chyba',
                                f'Nepodarilo sa inicializovať VLC player:\n{str(e)}')
             return False
+
+    def setup_logging(self):
+        # Vytvorenie priečinka pre logy ak neexistuje
+        log_dir = os.path.join(os.path.expanduser("~"), "VideoScheduler_logs")
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+            
+        # Nastavenie logovania
+        log_file = os.path.join(log_dir, f"videoschedule_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(levelname)s - %(message)s',
+            handlers=[
+                logging.FileHandler(log_file),
+                logging.StreamHandler()
+            ]
+        )
+        self.logger = logging.getLogger(__name__)
+
+    def setup_menu(self):
+        menubar = self.menuBar()
+        help_menu = menubar.addMenu('Pomoc')
+        
+        # Aktivačná akcia
+        activate_action = QAction('Aktivovať produkt', self)
+        activate_action.triggered.connect(self.show_activation_dialog)
+        help_menu.addAction(activate_action)
+        
+        # O programe
+        about_action = QAction('O programe', self)
+        about_action.triggered.connect(self.show_about_dialog)
+        help_menu.addAction(about_action)
+
+    def show_about_dialog(self):
+        info = self.license_manager.get_license_info()
+        if info['license_key']:
+            status = "Plná verzia"
+        else:
+            days_left = 7 - (datetime.now() - datetime.fromisoformat(info['first_run'])).days
+            status = f"Trial verzia ({days_left} dní zostáva)"
+            
+        QMessageBox.information(self, 'O programe',
+                              f'Video Scheduler\n\n'
+                              f'Status: {status}\n'
+                              f'Email: {info["email"] if info["email"] else "Neregistrované"}\n'
+                              f'Verzia: 1.0')
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
