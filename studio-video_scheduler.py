@@ -3,6 +3,7 @@ import vlc
 import json
 import hashlib
 import datetime
+import os
 from pathlib import Path
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QPushButton, QWidget, 
                             QVBoxLayout, QHBoxLayout, QFileDialog, QLabel, 
@@ -60,6 +61,10 @@ class VideoScheduler(QMainWindow):
         self.license_manager = LicenseManager()
         
         if not self.check_license():
+            sys.exit()
+            
+        # Najprv skontrolujeme VLC
+        if not self.setup_vlc():
             sys.exit()
             
         self.setWindowTitle('Video Scheduler')
@@ -253,6 +258,70 @@ class VideoScheduler(QMainWindow):
                                            'Invalid license key!')
         
         return False
+
+    def setup_vlc(self):
+        # Štandardné cesty pre VLC
+        standard_paths = [
+            r"C:\Program Files\VideoLAN\VLC",
+            r"C:\Program Files (x86)\VideoLAN\VLC",
+            os.path.expanduser("~\\AppData\\Local\\Programs\\VideoLAN\\VLC")
+        ]
+        
+        vlc_path = None
+        
+        # Skúsime nájsť VLC v štandardných cestách
+        for path in standard_paths:
+            if os.path.exists(os.path.join(path, "libvlc.dll")):
+                vlc_path = path
+                break
+        
+        # Ak sa nenašlo VLC, spýtame sa používateľa
+        if not vlc_path:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Information)
+            msg.setText("VLC player nebol nájdený v štandardných priečinkoch.\n"
+                       "Prosím, vyberte priečinok kde je nainštalovaný VLC player.")
+            msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+            
+            if msg.exec_() == QMessageBox.Ok:
+                vlc_path = QFileDialog.getExistingDirectory(
+                    self, 
+                    "Vyberte priečinok s VLC player",
+                    os.path.expanduser("~"),
+                    QFileDialog.ShowDirsOnly
+                )
+            else:
+                return False
+        
+        if not vlc_path:
+            QMessageBox.critical(self, 'Chyba',
+                               'VLC player je potrebný pre fungovanie aplikácie.\n'
+                               'Prosím, nainštalujte VLC player a spustite aplikáciu znova.')
+            return False
+            
+        # Kontrola či vybraný priečinok obsahuje potrebné súbory
+        required_files = ['libvlc.dll', 'libvlccore.dll']
+        missing_files = [f for f in required_files 
+                        if not os.path.exists(os.path.join(vlc_path, f))]
+        
+        if missing_files:
+            QMessageBox.critical(self, 'Chyba',
+                               f'Vybraný priečinok neobsahuje potrebné VLC súbory:\n'
+                               f'{", ".join(missing_files)}')
+            return False
+        
+        # Nastavenie VLC cesty do systémovej PATH
+        os.environ['PATH'] = vlc_path + os.pathsep + os.environ['PATH']
+        
+        # Inicializácia VLC
+        try:
+            self.instance = vlc.Instance()
+            self.player = self.instance.media_player_new()
+            return True
+        except Exception as e:
+            QMessageBox.critical(self, 'Chyba',
+                               f'Nepodarilo sa inicializovať VLC player:\n{str(e)}')
+            return False
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
