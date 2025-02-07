@@ -124,6 +124,10 @@ class PhoneHome:
                 'Content-Type': 'application/json'
             }
             
+            self.logger.info(f"Sending phone home report to {self.endpoint}")
+            self.logger.info(f"Data: {data}")
+            self.logger.info(f"Headers: {headers}")
+            
             response = requests.post(
                 self.endpoint,
                 json=data,
@@ -131,15 +135,20 @@ class PhoneHome:
                 timeout=5
             )
             
+            self.logger.info(f"Phone home response: {response.status_code}")
+            self.logger.info(f"Response content: {response.text}")
+            
             if response.status_code == 200:
                 self.logger.info("Phone home report úspešne odoslaný")
                 return True
             else:
                 self.logger.error(f"Phone home error: Status code {response.status_code}")
+                self.logger.error(f"Response content: {response.text}")
                 return False
                 
         except Exception as e:
             self.logger.error(f"Phone home error: {str(e)}")
+            self.logger.error(f"Exception type: {type(e)}")
             return False
             
     def get_status(self):
