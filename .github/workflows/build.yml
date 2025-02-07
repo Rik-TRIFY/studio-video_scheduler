@@ -34,7 +34,7 @@ jobs:
         pyinstaller --onefile --noconsole --hidden-import PyQt5.sip studio-video_scheduler.py
     
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: VideoScheduler-Windows
         path: dist/studio-video_scheduler.exe
