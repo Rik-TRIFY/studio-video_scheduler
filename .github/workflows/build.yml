@@ -18,14 +18,11 @@ jobs:
       with:
         python-version: '3.9'
     
-    - name: Install VLC
+    - name: Download VLC
+      shell: powershell
       run: |
-        $vlcPath = "C:\Program Files\VideoLAN\VLC"
-        $url = "https://get.videolan.org/vlc/3.0.18/win64/vlc-3.0.18-win64.exe"
-        Invoke-WebRequest -Uri $url -OutFile "vlc_installer.exe"
-        Start-Process -FilePath "vlc_installer.exe" -ArgumentList "/L=1033", "/S" -Wait
-        $env:Path += ";$vlcPath"
-        echo "VLC_PATH=$vlcPath" >> $env:GITHUB_ENV
+        Invoke-WebRequest -Uri "https://get.videolan.org/vlc/3.0.18/win64/vlc-3.0.18-win64.zip" -OutFile "vlc.zip"
+        Expand-Archive -Path vlc.zip -DestinationPath ./vlc
     
     - name: Install dependencies
       run: |
@@ -33,9 +30,10 @@ jobs:
         pip install PyQt5 python-vlc pyinstaller
     
     - name: Build with PyInstaller
+      env:
+        VLC_APP_PATH: ${{ github.workspace }}\vlc\vlc-3.0.18
       run: |
-        $env:PATH = "$env:VLC_PATH;$env:PATH"
-        pyinstaller --onefile --noconsole --add-binary "$env:VLC_PATH\libvlc.dll;." --add-binary "$env:VLC_PATH\libvlccore.dll;." --add-binary "$env:VLC_PATH\plugins;plugins" --hidden-import PyQt5.sip studio-video_scheduler.py
+        pyinstaller --onefile --noconsole --hidden-import PyQt5.sip --add-data "$env:VLC_APP_PATH;vlc" studio-video_scheduler.py
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4
