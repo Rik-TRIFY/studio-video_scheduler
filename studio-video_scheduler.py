@@ -15,7 +15,7 @@ class LicenseManager:
     def __init__(self):
         self.config_file = Path.home() / '.video_scheduler_config.json'
         self.trial_days = 7
-        self.secret_key = "YOUR_SECRET_KEY_HERE"  # V produkcii by mal byť bezpečnejší
+        self.secret_key = "0fc081be3aaaa55bec5e2098eb7cc8ec"
         
     def get_license_info(self):
         if not self.config_file.exists():
