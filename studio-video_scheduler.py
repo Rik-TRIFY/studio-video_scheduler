@@ -103,7 +103,7 @@ class LicenseManager:
 
 class PhoneHome:
     def __init__(self, license_manager, logger):
-        self.endpoint = "https://api.trify.sk/plugin-stats"
+        self.endpoint = "https://trify.sk/api/plugin-stats"
         self.api_key = "0fc081be3aaaa55bec5e2098eb7cc8ec"
         self.license_manager = license_manager
         self.logger = logger
