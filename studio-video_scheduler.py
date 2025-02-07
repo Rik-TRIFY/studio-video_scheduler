@@ -1,14 +1,67 @@
 import sys
 import vlc
+import json
+import hashlib
+import datetime
+from pathlib import Path
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QPushButton, QWidget, 
                             QVBoxLayout, QHBoxLayout, QFileDialog, QLabel, 
-                            QTimeEdit, QCheckBox, QListWidget)
+                            QTimeEdit, QCheckBox, QListWidget, QMessageBox,
+                            QInputDialog, QLineEdit)
 from PyQt5.QtCore import QTime, QTimer
-from datetime import datetime
+from datetime import datetime, timedelta
+
+class LicenseManager:
+    def __init__(self):
+        self.config_file = Path.home() / '.video_scheduler_config.json'
+        self.trial_days = 7
+        self.secret_key = "YOUR_SECRET_KEY_HERE"  # V produkcii by mal byť bezpečnejší
+        
+    def get_license_info(self):
+        if not self.config_file.exists():
+            # Prvé spustenie - začiatok trial verzie
+            info = {
+                'first_run': datetime.now().isoformat(),
+                'license_key': '',
+                'email': ''
+            }
+            self.save_license_info(info)
+            return info
+        
+        with open(self.config_file, 'r') as f:
+            return json.load(f)
+    
+    def save_license_info(self, info):
+        with open(self.config_file, 'w') as f:
+            json.dump(info, f)
+    
+    def is_trial_valid(self):
+        info = self.get_license_info()
+        first_run = datetime.fromisoformat(info['first_run'])
+        return datetime.now() - first_run < timedelta(days=self.trial_days)
+    
+    def is_license_valid(self, license_key, email):
+        # Jednoduchá implementácia - v produkcii by mala byť bezpečnejšia
+        expected_key = hashlib.md5(f"{email}{self.secret_key}".encode()).hexdigest()
+        return license_key == expected_key
+    
+    def activate_license(self, license_key, email):
+        if self.is_license_valid(license_key, email):
+            info = self.get_license_info()
+            info['license_key'] = license_key
+            info['email'] = email
+            self.save_license_info(info)
+            return True
+        return False
 
 class VideoScheduler(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.license_manager = LicenseManager()
+        
+        if not self.check_license():
+            sys.exit()
+            
         self.setWindowTitle('Video Scheduler')
         self.setGeometry(100, 100, 800, 600)
         
@@ -159,6 +212,47 @@ class VideoScheduler(QMainWindow):
             self.video2_path and 
             self.current_video == 1):
             self.play_video2()
+    
+    def check_license(self):
+        info = self.license_manager.get_license_info()
+        
+        if info['license_key']:
+            # Má licenciu - overíme ju
+            if self.license_manager.is_license_valid(info['license_key'], info['email']):
+                return True
+        
+        # Nemá licenciu - skontrolujeme trial
+        if self.license_manager.is_trial_valid():
+            days_left = 7 - (datetime.now() - datetime.fromisoformat(info['first_run'])).days
+            QMessageBox.information(self, 'Trial Version', 
+                                  f'You are using trial version. {days_left} days remaining.')
+            return True
+        
+        # Trial vypršal - požiadame o aktiváciu
+        return self.show_activation_dialog()
+    
+    def show_activation_dialog(self):
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Information)
+        msg.setText("Trial period has expired. Would you like to activate the software?")
+        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        
+        if msg.exec_() == QMessageBox.Yes:
+            email, ok = QInputDialog.getText(self, 'Activation', 
+                                           'Enter your email:', QLineEdit.Normal)
+            if ok and email:
+                license_key, ok = QInputDialog.getText(self, 'Activation', 
+                                                     'Enter license key:', QLineEdit.Normal)
+                if ok and license_key:
+                    if self.license_manager.activate_license(license_key, email):
+                        QMessageBox.information(self, 'Success', 
+                                              'Software has been successfully activated!')
+                        return True
+                    else:
+                        QMessageBox.critical(self, 'Error', 
+                                           'Invalid license key!')
+        
+        return False
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
