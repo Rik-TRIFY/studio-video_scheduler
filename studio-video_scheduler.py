@@ -230,13 +230,11 @@ class VideoScheduler(QMainWindow):
             self.current_video = 2
             
             # Definujeme callback funkciu pre koniec videa
+            @media.event_manager().event_attach(vlc.EventType.MediaPlayerEndReached)
             def back_to_video1(event):
-                self.logger.info("Video 2 skončilo, prepínam na Video 1")
-                self.play_video1()
-            
-            # Správne pripojenie event handlera
-            event_manager = media.event_manager()
-            event_manager.event_attach(vlc.EventType.MediaPlayerEndReached, back_to_video1)
+                self.logger.info("Video 2 skončilo, prepínam späť na Video 1")
+                # Použijeme QTimer pre bezpečné prepnutie späť na Video 1
+                QTimer.singleShot(100, self.play_video1)
             
         except Exception as e:
             self.logger.error("Chyba pri prehrávaní Video 2: %s", str(e))
