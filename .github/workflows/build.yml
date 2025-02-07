@@ -18,25 +18,18 @@ jobs:
       with:
         python-version: '3.9'
     
-    - name: Download VLC
-      shell: powershell
-      run: |
-        Invoke-WebRequest -Uri "https://get.videolan.org/vlc/3.0.18/win64/vlc-3.0.18-win64.zip" -OutFile "vlc.zip"
-        Expand-Archive -Path vlc.zip -DestinationPath ./vlc
-    
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install PyQt5 python-vlc pyinstaller
     
     - name: Build with PyInstaller
-      env:
-        VLC_APP_PATH: ${{ github.workspace }}\vlc\vlc-3.0.18
       run: |
-        pyinstaller --onefile --noconsole --hidden-import PyQt5.sip --add-data "$env:VLC_APP_PATH;vlc" studio-video_scheduler.py
+        pyinstaller --onefile --noconsole --hidden-import PyQt5.sip studio-video_scheduler.py
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: VideoScheduler-Windows
         path: dist/studio-video_scheduler.exe
+        retention-days: 5
