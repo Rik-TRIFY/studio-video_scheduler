@@ -205,12 +205,17 @@ class VideoScheduler(QMainWindow):
             self.player.play()
             self.current_video = 1
             
-            @media.event_manager().event_attach(vlc.EventType.MediaPlayerEndReached)
+            # Definujeme callback funkciu pre koniec videa
             def replay(event):
                 self.logger.info("Video 1 skončilo, prehrávam znova")
                 if self.current_video == 1:
                     self.player.set_position(0)
                     self.player.play()
+            
+            # Správne pripojenie event handlera
+            event_manager = media.event_manager()
+            event_manager.event_attach(vlc.EventType.MediaPlayerEndReached, replay)
+            
         except Exception as e:
             self.logger.error("Chyba pri prehrávaní Video 1: %s", str(e))
             QMessageBox.critical(self, 'Chyba',
@@ -219,15 +224,20 @@ class VideoScheduler(QMainWindow):
     def play_video2(self):
         try:
             self.logger.info("Spúšťam Video 2: %s", self.video2_path)
-            self.current_video = 2
             media = self.instance.media_new(self.video2_path)
             self.player.set_media(media)
             self.player.play()
+            self.current_video = 2
             
-            @media.event_manager().event_attach(vlc.EventType.MediaPlayerEndReached)
+            # Definujeme callback funkciu pre koniec videa
             def back_to_video1(event):
                 self.logger.info("Video 2 skončilo, prepínam na Video 1")
                 self.play_video1()
+            
+            # Správne pripojenie event handlera
+            event_manager = media.event_manager()
+            event_manager.event_attach(vlc.EventType.MediaPlayerEndReached, back_to_video1)
+            
         except Exception as e:
             self.logger.error("Chyba pri prehrávaní Video 2: %s", str(e))
             QMessageBox.critical(self, 'Chyba',
