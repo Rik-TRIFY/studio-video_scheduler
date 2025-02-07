@@ -23,6 +23,7 @@ jobs:
       run: |
         Invoke-WebRequest -Uri "https://get.videolan.org/vlc/3.0.18/win64/vlc-3.0.18-win64.zip" -OutFile "vlc.zip"
         Expand-Archive -Path vlc.zip -DestinationPath .
+        dir
     
     - name: Install dependencies
       run: |
@@ -32,8 +33,8 @@ jobs:
     - name: Build with PyInstaller
       shell: powershell
       run: |
-        $vlcPath = "vlc-3.0.18"
-        pyinstaller --onefile --noconsole --add-binary "$vlcPath\libvlc.dll;." --add-binary "$vlcPath\libvlccore.dll;." --add-binary "$vlcPath\plugins;plugins" --hidden-import PyQt5.sip studio-video_scheduler.py
+        $Env:Path += ";$pwd\vlc-3.0.18"
+        pyinstaller --onefile --noconsole --add-data "vlc-3.0.18/libvlc.dll;." --add-data "vlc-3.0.18/libvlccore.dll;." --add-data "vlc-3.0.18/plugins;plugins" --hidden-import PyQt5.sip studio-video_scheduler.py
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4
