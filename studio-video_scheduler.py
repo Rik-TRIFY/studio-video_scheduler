@@ -150,12 +150,27 @@ class VideoScheduler(QMainWindow):
         control_layout.addWidget(self.start_btn)
         control_layout.addWidget(self.stop_btn)
         
+        # Upravíme layout pre zoznam časov a informácie o Video 2
+        times_layout = QHBoxLayout()
+        
+        # Ľavá strana - zoznam časov
+        times_left = QVBoxLayout()
+        times_left.addWidget(QLabel('Naplánované časy:'))
+        times_left.addWidget(self.time_list)
+        times_layout.addLayout(times_left)
+        
+        # Pravá strana - informácie o Video 2
+        times_right = QVBoxLayout()
+        times_right.addWidget(QLabel('Informácie o Video 2:'))
+        self.video2_info_label = QLabel('Čaká sa na spustenie Video 2...')
+        times_right.addWidget(self.video2_info_label)
+        times_layout.addLayout(times_right)
+        
         # Pridanie všetkých komponentov do hlavného layoutu
         layout.addLayout(video1_group)
         layout.addLayout(video2_group)
         layout.addLayout(time_layout)
-        layout.addWidget(QLabel('Scheduled times:'))
-        layout.addWidget(self.time_list)
+        layout.addLayout(times_layout)
         layout.addWidget(remove_time_btn)
         layout.addLayout(control_layout)
         
@@ -226,23 +241,40 @@ class VideoScheduler(QMainWindow):
             self.logger.info("Spúšťam Video 2: %s", self.video2_path)
             media = self.instance.media_new(self.video2_path)
             self.player.set_media(media)
+            
+            # Získame dĺžku videa v milisekundách
+            media.parse()
+            duration_ms = media.get_duration()
+            duration_sec = duration_ms / 1000
+            self.logger.info(f"Dĺžka Video 2: {duration_sec} sekúnd")
+            
             self.player.play()
             self.current_video = 2
             
-            # Definujeme callback funkciu pre koniec videa
-            def back_to_video1(event):
-                self.logger.info("Video 2 skončilo, prepínam späť na Video 1")
-                # Použijeme QTimer pre bezpečné prepnutie späť na Video 1
-                QTimer.singleShot(100, self.play_video1)
+            # Nastavíme časovač na prepnutie späť na Video 1
+            QTimer.singleShot(int(duration_ms), self.play_video1)
             
-            # Správne pripojenie event handlera
-            event_manager = media.event_manager()
-            event_manager.event_attach(vlc.EventType.MediaPlayerEndReached, back_to_video1)
+            # Aktualizujeme informácie v UI
+            end_time = datetime.now() + timedelta(milliseconds=duration_ms)
+            self.update_video2_info(end_time.strftime("%H:%M:%S"))
             
         except Exception as e:
             self.logger.error("Chyba pri prehrávaní Video 2: %s", str(e))
             QMessageBox.critical(self, 'Chyba',
                                f'Nepodarilo sa prehrať Video 2:\n{str(e)}')
+
+    def update_video2_info(self, end_time):
+        # Pridáme do UI informáciu o konci Video 2
+        if not hasattr(self, 'video2_info_label'):
+            self.video2_info_label = QLabel()
+            # Nájdeme layout s časmi a pridáme nový label
+            for i in range(self.layout().count()):
+                item = self.layout().itemAt(i)
+                if isinstance(item, QVBoxLayout) and self.time_list in item.children():
+                    item.addWidget(self.video2_info_label)
+                    break
+        
+        self.video2_info_label.setText(f'Video 2 končí v: {end_time}')
     
     def check_schedule(self):
         current_time = datetime.now().strftime("%H:%M")
