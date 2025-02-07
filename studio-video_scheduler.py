@@ -87,6 +87,7 @@ class VideoScheduler(QMainWindow):
         self.video1_path = ""
         self.video2_path = ""
         self.scheduled_times = []
+        self.video1_position = 0  # Pridáme premennú pre pozíciu Video 1
         
         self.init_ui()
         
@@ -212,13 +213,20 @@ class VideoScheduler(QMainWindow):
         self.start_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
     
-    def play_video1(self):
+    def play_video1(self, resume=True):
         try:
             self.logger.info("Spúšťam Video 1: %s", self.video1_path)
             media = self.instance.media_new(self.video1_path)
             self.player.set_media(media)
             self.player.play()
             self.current_video = 1
+            
+            # Ak máme pokračovať z uloženej pozície
+            if resume and self.video1_position > 0:
+                self.logger.info(f"Nastavujem Video 1 na pozíciu: {self.video1_position}")
+                # Počkáme krátku chvíľu, aby sa video načítalo
+                QTimer.singleShot(100, lambda: self.player.set_position(self.video1_position))
+                self.video1_position = 0  # Resetujeme pozíciu
             
             # Definujeme callback funkciu pre koniec videa
             def replay(event):
@@ -248,39 +256,31 @@ class VideoScheduler(QMainWindow):
             duration_sec = duration_ms / 1000
             self.logger.info(f"Dĺžka Video 2: {duration_sec} sekúnd")
             
+            # Aktualizujeme informácie v UI hneď po načítaní
+            self.video2_info_label.setText(
+                f'Video 2 - Dĺžka: {int(duration_sec/60)}:{int(duration_sec%60):02d}\n'
+                f'Končí v: {(datetime.now() + timedelta(seconds=duration_sec)).strftime("%H:%M:%S")}'
+            )
+            
             self.player.play()
             self.current_video = 2
             
             # Nastavíme časovač na prepnutie späť na Video 1
-            QTimer.singleShot(int(duration_ms), self.play_video1)
-            
-            # Aktualizujeme informácie v UI
-            end_time = datetime.now() + timedelta(milliseconds=duration_ms)
-            self.update_video2_info(end_time.strftime("%H:%M:%S"))
+            QTimer.singleShot(int(duration_ms), lambda: self.play_video1(resume=True))
             
         except Exception as e:
             self.logger.error("Chyba pri prehrávaní Video 2: %s", str(e))
             QMessageBox.critical(self, 'Chyba',
                                f'Nepodarilo sa prehrať Video 2:\n{str(e)}')
-
-    def update_video2_info(self, end_time):
-        # Pridáme do UI informáciu o konci Video 2
-        if not hasattr(self, 'video2_info_label'):
-            self.video2_info_label = QLabel()
-            # Nájdeme layout s časmi a pridáme nový label
-            for i in range(self.layout().count()):
-                item = self.layout().itemAt(i)
-                if isinstance(item, QVBoxLayout) and self.time_list in item.children():
-                    item.addWidget(self.video2_info_label)
-                    break
-        
-        self.video2_info_label.setText(f'Video 2 končí v: {end_time}')
     
     def check_schedule(self):
         current_time = datetime.now().strftime("%H:%M")
         if (current_time in self.scheduled_times and 
             self.video2_path and 
             self.current_video == 1):
+            # Uložíme si pozíciu Video 1 pred prepnutím
+            self.video1_position = self.player.get_position()
+            self.logger.info(f"Ukladám pozíciu Video 1: {self.video1_position}")
             self.play_video2()
     
     def check_license(self):
