@@ -218,15 +218,23 @@ class VideoScheduler(QMainWindow):
             self.logger.info("Spúšťam Video 1: %s", self.video1_path)
             media = self.instance.media_new(self.video1_path)
             self.player.set_media(media)
-            self.player.play()
-            self.current_video = 1
             
             # Ak máme pokračovať z uloženej pozície
             if resume and self.video1_position > 0:
-                self.logger.info(f"Nastavujem Video 1 na pozíciu: {self.video1_position}")
-                # Počkáme krátku chvíľu, aby sa video načítalo
-                QTimer.singleShot(100, lambda: self.player.set_position(self.video1_position))
-                self.video1_position = 0  # Resetujeme pozíciu
+                saved_position = self.video1_position
+                self.logger.info(f"Plánujem nastaviť Video 1 na pozíciu: {saved_position}")
+                
+                def set_position():
+                    self.logger.info(f"Nastavujem Video 1 na pozíciu: {saved_position}")
+                    self.player.set_position(saved_position)
+                    # Resetujeme pozíciu až po úspešnom nastavení
+                    self.video1_position = 0
+                
+                # Počkáme dlhšie, aby sa video určite načítalo
+                QTimer.singleShot(500, set_position)
+            
+            self.player.play()
+            self.current_video = 1
             
             # Definujeme callback funkciu pre koniec videa
             def replay(event):
