@@ -102,14 +102,16 @@ class LicenseManager:
         return False
 
 class PhoneHome:
-    def __init__(self):
-        self.endpoint = "https://api.trify.sk/plugin-stats"  # alebo váš endpoint
+    def __init__(self, license_manager, logger):
+        self.endpoint = "https://api.trify.sk/plugin-stats"
         self.api_key = "0fc081be3aaaa55bec5e2098eb7cc8ec"
+        self.license_manager = license_manager
+        self.logger = logger
         
     def send_report(self):
         try:
             data = {
-                'domain': platform.node(),  # názov počítača
+                'domain': platform.node(),
                 'plugin': 'video-scheduler',
                 'version': '1.0',
                 'status': self.get_status(),
@@ -179,7 +181,7 @@ class VideoScheduler(QMainWindow):
         self.scheduled_times = []
         self.video1_position = 0  # Pridáme premennú pre pozíciu Video 1
         
-        self.phone_home = PhoneHome()
+        self.phone_home = PhoneHome(self.license_manager, self.logger)
         # Odošleme report pri štarte aplikácie
         self.phone_home.send_report()
         
