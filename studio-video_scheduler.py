@@ -13,26 +13,70 @@ from PyQt5.QtCore import QTime, QTimer
 from datetime import datetime, timedelta
 import logging
 from PyQt5.QtWidgets import QAction
+import platform
+import requests
 
 class LicenseManager:
     def __init__(self):
-        self.config_file = Path.home() / '.video_scheduler_config.json'
+        # Zmeníme umiestnenie konfiguračného súboru do skrytého systémového priečinka
+        if platform.system() == 'Windows':
+            self.config_file = Path(os.getenv('APPDATA')) / 'VideoScheduler' / '.config'
+        else:  # Linux/Mac
+            self.config_file = Path.home() / '.config' / 'videoschedule' / '.config'
+            
         self.trial_days = 7
         self.secret_key = "0fc081be3aaaa55bec5e2098eb7cc8ec"
         
     def get_license_info(self):
         if not self.config_file.exists():
+            # Vytvoríme priečinok ak neexistuje
+            self.config_file.parent.mkdir(parents=True, exist_ok=True)
+            
             # Prvé spustenie - začiatok trial verzie
             info = {
                 'first_run': datetime.now().isoformat(),
                 'license_key': '',
-                'email': ''
+                'email': '',
+                # Pridáme kontrolný hash
+                'checksum': ''
             }
+            info['checksum'] = self._calculate_checksum(info)
             self.save_license_info(info)
             return info
         
-        with open(self.config_file, 'r') as f:
-            return json.load(f)
+        return self._verify_and_load_config()
+    
+    def _calculate_checksum(self, info):
+        # Vytvoríme hash z dát a tajného kľúča
+        data = f"{info['first_run']}{info['license_key']}{info['email']}{self.secret_key}"
+        return hashlib.sha256(data.encode()).hexdigest()
+    
+    def _verify_and_load_config(self):
+        try:
+            with open(self.config_file, 'rb') as f:
+                info = json.load(f)
+            
+            # Overíme checksum
+            original_checksum = info.pop('checksum', '')
+            calculated_checksum = self._calculate_checksum(info)
+            
+            if original_checksum != calculated_checksum:
+                # Detegovaná manipulácia - zablokujeme aplikáciu
+                self.logger.error("Detekovaná manipulácia s konfiguračným súborom - aplikácia zablokovaná")
+                QMessageBox.critical(None, 'Kritická chyba', 
+                    'Bola detegovaná neoprávnená manipulácia s licenčnými údajmi.\n'
+                    'Aplikácia bude zablokovaná.\n\n'
+                    'Pre odblokovanie kontaktujte podporu na support@trify.sk')
+                sys.exit(1)
+            
+            return info
+            
+        except Exception as e:
+            self.logger.error(f"Chyba pri načítaní konfigurácie: {str(e)}")
+            QMessageBox.critical(None, 'Kritická chyba',
+                'Nepodarilo sa načítať konfiguráciu.\n'
+                'Pre pomoc kontaktujte podporu na support@trify.sk')
+            sys.exit(1)
     
     def save_license_info(self, info):
         with open(self.config_file, 'w') as f:
@@ -56,6 +100,52 @@ class LicenseManager:
             self.save_license_info(info)
             return True
         return False
+
+class PhoneHome:
+    def __init__(self):
+        self.endpoint = "https://api.trify.sk/plugin-stats"  # alebo váš endpoint
+        self.api_key = "0fc081be3aaaa55bec5e2098eb7cc8ec"
+        
+    def send_report(self):
+        try:
+            data = {
+                'domain': platform.node(),  # názov počítača
+                'plugin': 'video-scheduler',
+                'version': '1.0',
+                'status': self.get_status(),
+                'license_email': self.license_manager.get_license_info().get('email', ''),
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            }
+            
+            headers = {
+                'X-TRIFY-API-KEY': self.api_key,
+                'Content-Type': 'application/json'
+            }
+            
+            response = requests.post(
+                self.endpoint,
+                json=data,
+                headers=headers,
+                timeout=5
+            )
+            
+            if response.status_code == 200:
+                self.logger.info("Phone home report úspešne odoslaný")
+                return True
+            else:
+                self.logger.error(f"Phone home error: Status code {response.status_code}")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Phone home error: {str(e)}")
+            return False
+            
+    def get_status(self):
+        info = self.license_manager.get_license_info()
+        if info.get('license_key'):
+            return 'licensed'
+        else:
+            return 'trial'
 
 class VideoScheduler(QMainWindow):
     def __init__(self):
@@ -88,6 +178,15 @@ class VideoScheduler(QMainWindow):
         self.video2_path = ""
         self.scheduled_times = []
         self.video1_position = 0  # Pridáme premennú pre pozíciu Video 1
+        
+        self.phone_home = PhoneHome()
+        # Odošleme report pri štarte aplikácie
+        self.phone_home.send_report()
+        
+        # Nastavíme pravidelné odosielanie reportu (každých 24 hodín)
+        self.phone_home_timer = QTimer()
+        self.phone_home_timer.timeout.connect(self.phone_home.send_report)
+        self.phone_home_timer.start(24 * 60 * 60 * 1000)  # 24 hodín v milisekundách
         
         self.init_ui()
         
