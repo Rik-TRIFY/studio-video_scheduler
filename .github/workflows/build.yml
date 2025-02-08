@@ -22,49 +22,9 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install cx_Freeze
-    
-    - name: Create setup.py
-      run: |
-        echo 'import sys
-        from cx_Freeze import setup, Executable
-        
-        build_exe_options = {
-            "packages": ["os", "requests", "PyQt5", "json", "datetime", "platform"],
-            "excludes": [],
-            "include_files": ["version_info.txt", "app.manifest"]
-        }
-        
-        setup(
-            name = "VideoScheduler",
-            version = "1.0",
-            description = "TRIFY Video Scheduler Application",
-            options = {"build_exe": build_exe_options},
-            executables = [Executable(
-                "studio-video_scheduler.py",
-                base="Win32GUI",
-                target_name="VideoScheduler.exe",
-                icon=None,
-                copyright="Copyright (c) 2024 TRIFY s.r.o.",
-                trademarks="TRIFY s.r.o."
-            )]
-        )' > setup.py
     
     - name: Build with cx_Freeze
       run: python setup.py build
-    
-    - name: Install Windows SDK
-      run: |
-        choco install windows-sdk-10-version-2004-all
-        
-    - name: Create and sign certificate
-      run: |
-        $certPassword = "${{ secrets.CERT_PASSWORD }}"
-        $cert = New-SelfSignedCertificate -Subject "CN=TRIFY s.r.o." -Type CodeSigning -KeyUsage DigitalSignature -KeyAlgorithm RSA -KeyLength 2048 -CertStoreLocation "Cert:\CurrentUser\My"
-        $pwd = ConvertTo-SecureString -String $certPassword -Force -AsPlainText
-        Export-PfxCertificate -Cert $cert -FilePath ".\cert.pfx" -Password $pwd
-        & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\signtool.exe" sign /f ".\cert.pfx" /p $certPassword /tr http://timestamp.digicert.com /td sha256 /fd sha256 "dist\VideoScheduler.exe"
-      shell: powershell
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4
