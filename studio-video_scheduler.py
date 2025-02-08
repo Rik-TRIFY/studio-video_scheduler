@@ -18,7 +18,7 @@ import requests
 import re
 
 # Na začiatku súboru pridáme konštantu pre verziu
-APP_VERSION = "1.21"  # Tu meníme verziu pre celú aplikáciu
+APP_VERSION = "1.21.1"  # Tu meníme verziu pre celú aplikáciu
 
 class LicenseManager:
     def __init__(self):
@@ -404,42 +404,52 @@ class VideoScheduler(QMainWindow):
     def check_license(self):
         info = self.license_manager.get_license_info()
         
+        # Ak už máme platnú licenciu, vrátime True bez zobrazenia dialógu
         if info['license_key']:
             if self.license_manager.is_license_valid(info['license_key'], info['email']):
                 return True
         
+        # Ak je trial stále platný, zobrazíme len informáciu
         if self.license_manager.is_trial_valid():
             days_left = 7 - (datetime.now() - datetime.fromisoformat(info['first_run'])).days
             QMessageBox.information(self, 'Skúšobná verzia', 
                                   f'Používate skúšobnú verziu. Zostáva {days_left} dní.')
             return True
         
+        # Ak nemáme licenciu ani platný trial, zobrazíme aktivačný dialóg
         return self.show_activation_dialog()
     
     def show_activation_dialog(self):
+        # Najprv skontrolujeme, či už nie je aktivovaný
+        info = self.license_manager.get_license_info()
+        if info['license_key'] and self.license_manager.is_license_valid(info['license_key'], info['email']):
+            QMessageBox.information(self, 'Informácia', 
+                                  'Produkt je už aktivovaný.')
+            return True
+
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Information)
         msg.setText("Skúšobná doba vypršala. Chcete aktivovať softvér?")
         msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         
         if msg.exec_() == QMessageBox.Yes:
-            while True:  # Pridáme cyklus pre opakované zadávanie
+            while True:
                 email, ok = QInputDialog.getText(self, 'Aktivácia', 
                                                'Zadajte sériové číslo:', QLineEdit.Normal)
-                if not ok:  # Užívateľ klikol Cancel
+                if not ok:
                     return False
                     
-                if not email:  # Prázdne sériové číslo
+                if not email:
                     QMessageBox.warning(self, 'Upozornenie', 
                                       'Sériové číslo nemôže byť prázdne!')
                     continue
                     
                 license_key, ok = QInputDialog.getText(self, 'Aktivácia', 
                                                      'Zadajte licenčný kľúč:', QLineEdit.Normal)
-                if not ok:  # Užívateľ klikol Cancel
+                if not ok:
                     return False
                     
-                if not license_key:  # Prázdny licenčný kľúč
+                if not license_key:
                     QMessageBox.warning(self, 'Upozornenie', 
                                       'Licenčný kľúč nemôže byť prázdny!')
                     continue
@@ -447,11 +457,11 @@ class VideoScheduler(QMainWindow):
                 if self.license_manager.activate_license(license_key, email):
                     QMessageBox.information(self, 'Úspech', 
                                           'Softvér bol úspešne aktivovaný!')
-                    return True
+                    return True  # Vrátime True, ale neukončíme program
                 else:
                     QMessageBox.critical(self, 'Chyba', 
                                        'Neplatný licenčný kľúč!')
-                    return False
+                    continue  # Dáme možnosť skúsiť znova
         
         return False
 
