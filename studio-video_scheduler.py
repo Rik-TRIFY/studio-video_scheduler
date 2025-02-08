@@ -15,6 +15,10 @@ import logging
 from PyQt5.QtWidgets import QAction
 import platform
 import requests
+import re
+
+# Na začiatku súboru pridáme konštantu pre verziu
+APP_VERSION = "1.21"  # Tu meníme verziu pre celú aplikáciu
 
 class LicenseManager:
     def __init__(self):
@@ -107,13 +111,14 @@ class PhoneHome:
         self.api_key = "0fc081be3aaaa55bec5e2098eb7cc8ec"
         self.license_manager = license_manager
         self.logger = logger
+        self.version = APP_VERSION  # Použijeme globálnu verziu
         
     def send_report(self):
         try:
             data = {
                 'domain': platform.node(),
                 'plugin': 'video-scheduler',
-                'version': '1.0',
+                'version': self.version,
                 'status': self.get_status(),
                 'license_email': self.license_manager.get_license_info().get('email', ''),
                 'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -124,9 +129,7 @@ class PhoneHome:
                 'Content-Type': 'application/json'
             }
             
-            self.logger.info(f"Sending phone home report to {self.endpoint}")
-            self.logger.info(f"Data: {data}")
-            self.logger.info(f"Headers: {headers}")
+            self.logger.info("Sending phone home report")
             
             response = requests.post(
                 self.endpoint,
@@ -136,19 +139,16 @@ class PhoneHome:
             )
             
             self.logger.info(f"Phone home response: {response.status_code}")
-            self.logger.info(f"Response content: {response.text}")
             
             if response.status_code == 200:
                 self.logger.info("Phone home report úspešne odoslaný")
                 return True
             else:
                 self.logger.error(f"Phone home error: Status code {response.status_code}")
-                self.logger.error(f"Response content: {response.text}")
                 return False
                 
         except Exception as e:
             self.logger.error(f"Phone home error: {str(e)}")
-            self.logger.error(f"Exception type: {type(e)}")
             return False
             
     def get_status(self):
@@ -568,7 +568,7 @@ class VideoScheduler(QMainWindow):
                               f'Stav: {status}\n'
                               f'Seriové číslo: {info["email"] if info["email"] else "Neregistrované"}\n\n'
                               f'👨‍💻 Kódované s vášňou a kreativitou od Erika\n\n'
-                              f'Version: 1.21\n'
+                              f'Verzia: {APP_VERSION}\n'
                               f'Author: Erik Fedor - TRIFY s.r.o.\n'
                               f'Copyright: © 2025 TRIFY s.r.o.\n'  
                               f'Všetky práva vyhradené.')
