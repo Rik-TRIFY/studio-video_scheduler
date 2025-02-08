@@ -22,14 +22,14 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install auto-py-to-exe
+        pip install nuitka
     
-    - name: Build with Auto-py-to-exe
+    - name: Build with Nuitka
       run: |
-        python -m auto_py_to_exe --output-dir dist --file studio-video_scheduler.py --onefile --window-based --icon=NONE --name=VideoScheduler --add-data "version_info.txt;." --add-data "app.manifest;."
+        python -m nuitka --mingw64 --windows-disable-console --onefile --assume-yes-for-downloads --include-package=requests --include-package=PyQt5 studio-video_scheduler.py
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: VideoScheduler
-        path: dist/VideoScheduler.exe
+        path: studio-video_scheduler.exe
