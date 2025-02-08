@@ -51,8 +51,12 @@ class LicenseManager:
         return self._verify_and_load_config()
     
     def _calculate_checksum(self, info):
+        # Vytvoríme kópiu info bez existujúceho checksumu
+        info_copy = info.copy()
+        info_copy.pop('checksum', None)  # Odstránime existujúci checksum ak existuje
+        
         # Vytvoríme hash z dát a tajného kľúča
-        data = f"{info['first_run']}{info['license_key']}{info['email']}{self.secret_key}"
+        data = f"{info_copy['first_run']}{info_copy['license_key']}{info_copy['email']}{self.secret_key}"
         return hashlib.sha256(data.encode()).hexdigest()
     
     def _verify_and_load_config(self):
@@ -83,6 +87,13 @@ class LicenseManager:
             sys.exit(1)
     
     def save_license_info(self, info):
+        # Najprv vypočítame nový checksum
+        info['checksum'] = self._calculate_checksum(info)
+        
+        # Vytvoríme priečinok ak neexistuje
+        self.config_file.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Uložíme dáta aj s checksumom
         with open(self.config_file, 'w') as f:
             json.dump(info, f)
     
