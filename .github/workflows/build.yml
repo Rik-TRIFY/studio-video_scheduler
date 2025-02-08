@@ -22,11 +22,11 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install pyinstaller
+        pip install auto-py-to-exe
     
-    - name: Build with PyInstaller
+    - name: Build with Auto-py-to-exe
       run: |
-        pyinstaller --onefile --windowed --name=VideoScheduler --hidden-import=requests --hidden-import=PyQt5.QtCore --hidden-import=PyQt5.QtGui --hidden-import=PyQt5.QtWidgets --version-file=version_info.txt --manifest=app.manifest --clean --noupx --disable-windowed-traceback --runtime-tmpdir=. studio-video_scheduler.py
+        python -m auto_py_to_exe --output-dir dist --file studio-video_scheduler.py --onefile --window-based --icon=NONE --name=VideoScheduler --add-data "version_info.txt;." --add-data "app.manifest;."
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4
