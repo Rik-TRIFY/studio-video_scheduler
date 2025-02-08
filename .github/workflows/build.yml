@@ -23,10 +23,23 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install pyinstaller
+
+    - name: Create Certificate
+      run: |
+        $cert = New-SelfSignedCertificate -DnsName "TRIFY s.r.o." -Type CodeSigning -CertStoreLocation Cert:\CurrentUser\My
+        $pwd = ConvertTo-SecureString -String "password" -Force -AsPlainText
+        $path = "certificate.pfx"
+        Export-PfxCertificate -Cert $cert -FilePath $path -Password $pwd
+      shell: powershell
     
     - name: Build with PyInstaller
       run: |
-        pyinstaller --onefile --windowed --name=VideoScheduler --hidden-import=requests --version-file=version_info.txt --manifest=app.manifest --uac-admin studio-video_scheduler.py
+        pyinstaller --onefile --windowed --name=VideoScheduler --hidden-import=requests --version-file=version_info.txt --manifest=app.manifest --uac-admin --clean --noupx studio-video_scheduler.py        
+
+    - name: Sign EXE
+      run: |
+        & "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" sign /f certificate.pfx /p password /tr http://timestamp.digicert.com /td sha256 /fd sha256 dist/VideoScheduler.exe
+      shell: cmd
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4

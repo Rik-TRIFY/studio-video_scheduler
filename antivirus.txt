@@ -1,0 +1,5 @@
+# TRIFY Video Scheduler
+# SHA256: [bude doplnené po buildnutí]
+# Tento súbor je legitímna aplikácia od spoločnosti TRIFY s.r.o.
+# Používa sa na plánovanie a prehrávanie videí v štúdiu.
+# Kontakt: info@trify.sk 
