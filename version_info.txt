@@ -15,13 +15,15 @@ VSVersionInfo(
         StringTable(
           u'040904B0',
           [StringStruct(u'CompanyName', u'TRIFY s.r.o.'),
-           StringStruct(u'FileDescription', u'Video Scheduler Application'),
+           StringStruct(u'FileDescription', u'TRIFY Video Scheduler - Professional Video Scheduling Software'),
            StringStruct(u'FileVersion', u'1.0.0'),
            StringStruct(u'InternalName', u'VideoScheduler'),
-           StringStruct(u'LegalCopyright', u'Copyright (c) 2024 TRIFY s.r.o.'),
+           StringStruct(u'LegalCopyright', u'Copyright © 2024 TRIFY s.r.o. All rights reserved.'),
            StringStruct(u'OriginalFilename', u'VideoScheduler.exe'),
            StringStruct(u'ProductName', u'TRIFY Video Scheduler'),
-           StringStruct(u'ProductVersion', u'1.0.0')])
+           StringStruct(u'ProductVersion', u'1.0.0'),
+           StringStruct(u'Publisher', u'TRIFY s.r.o.'),
+           StringStruct(u'Comments', u'Professional video scheduling software for studios')])
       ]
     ),
     VarFileInfo([VarStruct(u'Translation', [1033, 1200])])
