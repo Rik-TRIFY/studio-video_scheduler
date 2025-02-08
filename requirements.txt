@@ -1,5 +1,4 @@
 requests==2.31.0
 PyQt5==5.15.9
 python-vlc==3.0.20123
-cx_Freeze==6.15.12
 pywin32==306
