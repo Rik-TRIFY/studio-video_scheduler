@@ -341,7 +341,7 @@ class VideoScheduler(QMainWindow):
                     self.video1_position = 0
                 
                 # Počkáme dlhšie, aby sa video určite načítalo
-                QTimer.singleShot(500, set_position)
+                QTimer.singleShot(200, set_position)
             
             self.player.play()
             self.current_video = 1
@@ -423,19 +423,35 @@ class VideoScheduler(QMainWindow):
         msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         
         if msg.exec_() == QMessageBox.Yes:
-            email, ok = QInputDialog.getText(self, 'Aktivácia', 
-                                           'Zadajte sériové číslo:', QLineEdit.Normal)
-            if ok and email:
+            while True:  # Pridáme cyklus pre opakované zadávanie
+                email, ok = QInputDialog.getText(self, 'Aktivácia', 
+                                               'Zadajte sériové číslo:', QLineEdit.Normal)
+                if not ok:  # Užívateľ klikol Cancel
+                    return False
+                    
+                if not email:  # Prázdne sériové číslo
+                    QMessageBox.warning(self, 'Upozornenie', 
+                                      'Sériové číslo nemôže byť prázdne!')
+                    continue
+                    
                 license_key, ok = QInputDialog.getText(self, 'Aktivácia', 
                                                      'Zadajte licenčný kľúč:', QLineEdit.Normal)
-                if ok and license_key:
-                    if self.license_manager.activate_license(license_key, email):
-                        QMessageBox.information(self, 'Úspech', 
-                                              'Softvér bol úspešne aktivovaný!')
-                        return True
-                    else:
-                        QMessageBox.critical(self, 'Chyba', 
-                                           'Neplatný licenčný kľúč!')
+                if not ok:  # Užívateľ klikol Cancel
+                    return False
+                    
+                if not license_key:  # Prázdny licenčný kľúč
+                    QMessageBox.warning(self, 'Upozornenie', 
+                                      'Licenčný kľúč nemôže byť prázdny!')
+                    continue
+                    
+                if self.license_manager.activate_license(license_key, email):
+                    QMessageBox.information(self, 'Úspech', 
+                                          'Softvér bol úspešne aktivovaný!')
+                    return True
+                else:
+                    QMessageBox.critical(self, 'Chyba', 
+                                       'Neplatný licenčný kľúč!')
+                    return False
         
         return False
 
@@ -552,8 +568,8 @@ class VideoScheduler(QMainWindow):
                               f'Stav: {status}\n'
                               f'Seriové číslo: {info["email"] if info["email"] else "Neregistrované"}\n\n'
                               f'👨‍💻 Kódované s vášňou a kreativitou od Erika\n\n'
-                              f'Version: 1.0\n'
-                              f'Author: Erik Fedor - Trify s.r.o.\n'
+                              f'Version: 1.21\n'
+                              f'Author: Erik Fedor - TRIFY s.r.o.\n'
                               f'Copyright: © 2025 TRIFY s.r.o.\n'  
                               f'Všetky práva vyhradené.')
 
