@@ -8,7 +8,7 @@ from pathlib import Path
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QPushButton, QWidget, 
                             QVBoxLayout, QHBoxLayout, QFileDialog, QLabel, 
                             QTimeEdit, QCheckBox, QListWidget, QMessageBox,
-                            QInputDialog, QLineEdit)
+                            QInputDialog, QLineEdit, QDialog, QDialogButtonBox)
 from PyQt5.QtCore import QTime, QTimer
 from datetime import datetime, timedelta
 import logging
@@ -424,7 +424,7 @@ class VideoScheduler(QMainWindow):
         
         if msg.exec_() == QMessageBox.Yes:
             email, ok = QInputDialog.getText(self, 'Aktivácia', 
-                                           'Zadajte váš email:', QLineEdit.Normal)
+                                           'Zadajte sériové číslo:', QLineEdit.Normal)
             if ok and email:
                 license_key, ok = QInputDialog.getText(self, 'Aktivácia', 
                                                      'Zadajte licenčný kľúč:', QLineEdit.Normal)
@@ -554,6 +554,37 @@ class VideoScheduler(QMainWindow):
                               f'👨‍💻 Kódované s vášňou a kreativitou od Erika\n\n'
                               f'Version: 1.0\n'
                               f'Author: Erik Fedor - Trify s.r.o.')
+
+    def show_license_dialog(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle('Aktivácia licencie')
+        layout = QVBoxLayout()
+
+        # Informácie o trial verzii
+        trial_info = QLabel('Používate skúšobnú verziu programu.')
+        layout.addWidget(trial_info)
+
+        # Input pre sériové číslo
+        email_label = QLabel('Sériové číslo:')
+        email_input = QLineEdit()
+        layout.addWidget(email_label)
+        layout.addWidget(email_input)
+
+        # Input pre licenčný kľúč
+        key_label = QLabel('Licenčný kľúč:')
+        key_input = QLineEdit()
+        layout.addWidget(key_label)
+        layout.addWidget(key_input)
+
+        # Tlačidlá
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+        )
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+
+        dialog.setLayout(layout)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
