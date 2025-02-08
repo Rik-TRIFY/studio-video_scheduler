@@ -26,7 +26,7 @@ jobs:
     
     - name: Build with PyInstaller
       run: |
-        pyinstaller --onefile --windowed --name=VideoScheduler --hidden-import=requests --hidden-import=PyQt5.QtCore --hidden-import=PyQt5.QtGui --hidden-import=PyQt5.QtWidgets --version-file=version_info.txt --manifest=app.manifest --clean --noupx studio-video_scheduler.py
+        pyinstaller --onefile --windowed --name=VideoScheduler --hidden-import=requests --hidden-import=PyQt5.QtCore --hidden-import=PyQt5.QtGui --hidden-import=PyQt5.QtWidgets --version-file=version_info.txt --manifest=app.manifest --clean --noupx --disable-windowed-traceback --runtime-tmpdir=. studio-video_scheduler.py
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4
