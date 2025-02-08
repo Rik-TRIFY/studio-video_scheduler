@@ -550,12 +550,12 @@ class VideoScheduler(QMainWindow):
         QMessageBox.information(self, 'O programe',
                               f'Video Scheduler\n\n'
                               f'Stav: {status}\n'
-                              f'Sériové číslo: {info["email"] if info["email"] else "Neregistrované"}\n\n'
+                              f'Seriové číslo: {info["email"] if info["email"] else "Neregistrované"}\n\n'
                               f'👨‍💻 Kódované s vášňou a kreativitou od Erika\n\n'
                               f'Version: 1.0\n'
                               f'Author: Erik Fedor - Trify s.r.o.'
-                              f'Copyright © 2025 TRIFY s.r.o.
-Všetky práva vyhradené.')
+                              f'Copyright © 2025 TRIFY s.r.o.'  
+                              f'Všetky práva vyhradené.')
 
     def show_license_dialog(self):
         dialog = QDialog(self)
@@ -593,3 +593,4 @@ if __name__ == '__main__':
     window = VideoScheduler()
     window.show()
     sys.exit(app.exec_())
+    
