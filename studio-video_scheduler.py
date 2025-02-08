@@ -553,8 +553,8 @@ class VideoScheduler(QMainWindow):
                               f'Seriové číslo: {info["email"] if info["email"] else "Neregistrované"}\n\n'
                               f'👨‍💻 Kódované s vášňou a kreativitou od Erika\n\n'
                               f'Version: 1.0\n'
-                              f'Author: Erik Fedor - Trify s.r.o.'
-                              f'Copyright © 2025 TRIFY s.r.o.'  
+                              f'Author: Erik Fedor - Trify s.r.o.\n'
+                              f'Copyright: © 2025 TRIFY s.r.o.\n'  
                               f'Všetky práva vyhradené.')
 
     def show_license_dialog(self):
