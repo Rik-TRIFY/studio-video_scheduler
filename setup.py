@@ -1,19 +1,20 @@
 import sys
 from cx_Freeze import setup, Executable
-import os
 
-# Získanie absolútnej cesty k súborom
-manifest_file = os.path.abspath("app.manifest")
-version_file = os.path.abspath("version_info.txt")
-
+# Základné nastavenia
 build_exe_options = {
-    "packages": ["os", "requests", "PyQt5", "json", "datetime", "platform"],
-    "excludes": [],
-    "include_files": [],  # Odstránime include_files, ktoré spôsobujú problém
-    "include_msvcr": True
+    "packages": ["os", "sys", "requests", "PyQt5", "json", "datetime", "platform"],
+    "includes": ["PyQt5.QtCore", "PyQt5.QtGui", "PyQt5.QtWidgets"],
+    "excludes": ["tkinter", "unittest"],
+    "include_msvcr": True,
+    "zip_include_packages": ["*"],
+    "zip_exclude_packages": []
 }
 
-base = "Win32GUI" if sys.platform == "win32" else None
+# Základná konfigurácia
+base = None
+if sys.platform == "win32":
+    base = "Win32GUI"
 
 setup(
     name = "VideoScheduler",
@@ -23,8 +24,6 @@ setup(
     executables = [Executable(
         "studio-video_scheduler.py",
         base=base,
-        target_name="VideoScheduler.exe",
-        copyright="Copyright (c) 2024 TRIFY s.r.o.",
-        trademarks="TRIFY s.r.o."
+        target_name="VideoScheduler.exe"
     )]
 ) 
