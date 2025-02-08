@@ -122,7 +122,17 @@ class PhoneHome:
         self.api_key = "0fc081be3aaaa55bec5e2098eb7cc8ec"
         self.license_manager = license_manager
         self.logger = logger
-        self.version = APP_VERSION  # Použijeme globálnu verziu
+        self.version = APP_VERSION
+            
+    def get_status(self):
+        info = self.license_manager.get_license_info()
+        if info.get('license_key'):
+            # Overíme či je licencia platná
+            if self.license_manager.is_license_valid(info['license_key'], info['email']):
+                return 'Aktivovaný'
+        elif self.license_manager.is_trial_valid():
+            return 'Skúšobná verzia'
+        return 'Vypršaný'
         
     def send_report(self):
         try:
@@ -130,7 +140,7 @@ class PhoneHome:
                 'domain': platform.node(),
                 'plugin': 'video-scheduler',
                 'version': self.version,
-                'status': self.get_status(),
+                'status': self.get_status(),  # Endpoint zobrazí presne tento text
                 'license_email': self.license_manager.get_license_info().get('email', ''),
                 'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             }
@@ -161,13 +171,6 @@ class PhoneHome:
         except Exception as e:
             self.logger.error(f"Phone home error: {str(e)}")
             return False
-            
-    def get_status(self):
-        info = self.license_manager.get_license_info()
-        if info.get('license_key'):
-            return 'licensed'
-        else:
-            return 'trial'
 
 class VideoScheduler(QMainWindow):
     def __init__(self):
