@@ -18,7 +18,7 @@ import requests
 import re
 
 # Na začiatku súboru pridáme konštantu pre verziu
-APP_VERSION = "1.21.2"  # Tu meníme verziu pre celú aplikáciu
+APP_VERSION = "1.21.3"  # Tu meníme verziu pre celú aplikáciu
 
 class LicenseManager:
     def __init__(self):
@@ -567,26 +567,52 @@ class VideoScheduler(QMainWindow):
             return False
 
     def setup_logging(self):
-        # Získanie cesty k priečinku STUDIO na ploche
-        desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
-        log_dir = os.path.join(desktop_path, "STUDIO", "logs")
-        
-        # Vytvorenie priečinka pre logy ak neexistuje
-        if not os.path.exists(log_dir):
-            os.makedirs(log_dir)
+        try:
+            # Nastavenie cesty k logom pre Windows
+            if platform.system() == 'Windows':
+                # Použijeme priečinok Dokumenty
+                documents_path = Path(os.path.expanduser("~/Documents"))
+                log_dir = documents_path / 'VideoScheduler' / 'logs'
+            else:  # Linux/Mac
+                log_dir = Path('/var/log/videoschedule')
             
-        # Nastavenie logovania
-        log_file = os.path.join(log_dir, f"videoschedule_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
-        logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(levelname)s - %(message)s',
-            handlers=[
-                logging.FileHandler(log_file, encoding='utf-8'),
-                logging.StreamHandler()
-            ]
-        )
-        self.logger = logging.getLogger(__name__)
-        self.logger.info("Aplikácia spustená - inicializácia logovania")
+            # Pokus o vytvorenie priečinkov
+            try:
+                log_dir.mkdir(parents=True, exist_ok=True)
+                print(f"Priečinok pre logy vytvorený: {log_dir}")  # Dočasný print pre debug
+            except Exception as e:
+                print(f"Chyba pri vytváraní priečinka: {str(e)}")  # Dočasný print pre debug
+                # Fallback na AppData ak Documents zlyhá
+                log_dir = Path(os.getenv('APPDATA')) / 'VideoScheduler' / 'logs'
+                log_dir.mkdir(parents=True, exist_ok=True)
+                
+            # Vytvorenie log súboru
+            log_file = log_dir / f"videoschedule_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+            
+            # Nastavenie logovania
+            logging.basicConfig(
+                level=logging.INFO,
+                format='%(asctime)s - %(levelname)s - %(message)s',
+                handlers=[
+                    logging.FileHandler(log_file, encoding='utf-8'),
+                    logging.StreamHandler()
+                ]
+            )
+            
+            self.logger = logging.getLogger(__name__)
+            self.logger.info("Aplikácia spustená - inicializácia logovania")
+            self.logger.info(f"Logy sa ukladajú do: {log_dir}")
+            
+        except Exception as e:
+            print(f"Kritická chyba pri nastavovaní logovania: {str(e)}")
+            # Fallback na základné logovanie do konzoly
+            logging.basicConfig(
+                level=logging.INFO,
+                format='%(asctime)s - %(levelname)s - %(message)s',
+                handlers=[logging.StreamHandler()]
+            )
+            self.logger = logging.getLogger(__name__)
+            self.logger.error(f"Nepodarilo sa nastaviť logovanie do súboru: {str(e)}")
 
     def setup_menu(self):
         menubar = self.menuBar()
