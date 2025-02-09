@@ -18,7 +18,7 @@ import requests
 import re
 
 # Na začiatku súboru pridáme konštantu pre verziu
-APP_VERSION = "1.21.1"  # Tu meníme verziu pre celú aplikáciu
+APP_VERSION = "1.21.2"  # Tu meníme verziu pre celú aplikáciu
 
 class LicenseManager:
     def __init__(self):
@@ -311,6 +311,29 @@ class VideoScheduler(QMainWindow):
             else:
                 self.video2_path = filename
                 self.video2_label.setText(f'Video 2: {filename}')
+                
+                # Zistíme informácie o Video 2 hneď po jeho výbere
+                try:
+                    # Vytvoríme dočasné VLC media pre získanie informácií
+                    media = self.instance.media_new(filename)
+                    media.parse()
+                    duration_ms = media.get_duration()
+                    duration_sec = duration_ms / 1000
+                    
+                    # Vypočítame čas ukončenia pre aktuálny čas
+                    end_time = (datetime.now() + timedelta(seconds=duration_sec)).strftime("%H:%M:%S")
+                    
+                    # Aktualizujeme informácie v UI
+                    self.video2_info_label.setText(
+                        f'Video 2 - Dĺžka: {int(duration_sec/60)}:{int(duration_sec%60):02d}\n'
+                        f'Predpokladaný čas ukončenia: {end_time}\n'
+                        f'(pri okamžitom spustení)'
+                    )
+                    
+                    self.logger.info(f"Video 2 informácie - Dĺžka: {duration_sec} sekúnd")
+                except Exception as e:
+                    self.logger.error(f"Chyba pri získavaní informácií o Video 2: {str(e)}")
+                    self.video2_info_label.setText('Nepodarilo sa získať informácie o Video 2')
     
     def add_scheduled_time(self):
         time = self.time_edit.time().toString("HH:mm")
