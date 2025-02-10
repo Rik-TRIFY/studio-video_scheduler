@@ -20,7 +20,7 @@ from PyQt5.QtGui import QIcon
 import subprocess
 
 # Na začiatku súboru pridáme konštantu pre verziu
-APP_VERSION = "1.22.9"  # Tu meníme verziu pre celú aplikáciu
+APP_VERSION = "1.22.10"  # Tu meníme verziu pre celú aplikáciu
 
 class LicenseManager:
     def __init__(self):
