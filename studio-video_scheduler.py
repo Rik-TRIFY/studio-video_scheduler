@@ -18,8 +18,6 @@ import requests
 import re
 from PyQt5.QtGui import QIcon
 import subprocess
-import resources_rc
-from PyQt5.QtCore import QResource
 
 # Na začiatku súboru pridáme konštantu pre verziu
 APP_VERSION = "1.22.12.1"  # Tu meníme verziu pre celú aplikáciu
