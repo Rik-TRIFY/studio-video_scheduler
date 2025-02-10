@@ -22,10 +22,11 @@ jobs:
       run: |
         python -m pip install --upgrade pip setuptools wheel
         pip install -r requirements.txt
+        pip list  # Pre kontrolu nainštalovaných balíkov
         
     - name: Build with Nuitka
       run: |
-        python -m nuitka --mingw64 --windows-disable-console --windows-icon-from-ico=icon.ico --onefile --include-package=requests --include-package=PyQt5 --include-package=vlc --include-qt-plugins=platforms,styles --include-data-dir=. studio-video_scheduler.py
+        python -m nuitka --mingw64 --windows-disable-console --windows-icon-from-ico=icon.ico --onefile --include-package=requests --include-package=PyQt5 --include-package=python_vlc --include-qt-plugins=platforms,styles --include-data-dir=. studio-video_scheduler.py
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4

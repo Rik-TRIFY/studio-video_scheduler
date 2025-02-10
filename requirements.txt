@@ -4,3 +4,6 @@ python-vlc==3.0.18122
 nuitka==1.9.7
 ordered-set==4.1.0
 zstandard==0.22.0
+wheel==0.42.0
+# Potrebné pre build
+setuptools>=65.5.1
