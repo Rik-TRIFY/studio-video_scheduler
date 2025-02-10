@@ -606,7 +606,7 @@ class VideoScheduler(QMainWindow):
             self.logger.info("-"*30)
             
         except Exception as e:
-            self.logger.error(f"Chyba pri verifikácii reštartu: {str(e)}", exc_info=True)
+            self.logger.error(f"Chyba pri verifikácii reštartu: {str(e)}")
 
     def restart_video1(self):
         """Metóda pre reštart Video 1 od začiatku"""
@@ -1076,7 +1076,13 @@ class VideoScheduler(QMainWindow):
         dialog.setLayout(layout)
 
 if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    window = VideoScheduler()
-    window.show()
-    sys.exit(app.exec_())
+    try:
+        app = QApplication(sys.argv)
+        window = VideoScheduler()
+        window.show()
+        sys.exit(app.exec_())
+    except Exception as e:
+        with open('error.log', 'w', encoding='utf-8') as f:
+            f.write(f"Kritická chyba: {str(e)}\n")
+            import traceback
+            f.write(traceback.format_exc())
