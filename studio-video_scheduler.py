@@ -18,7 +18,7 @@ import requests
 import re
 
 # Na začiatku súboru pridáme konštantu pre verziu
-APP_VERSION = "1.22.2"  # Tu meníme verziu pre celú aplikáciu
+APP_VERSION = "1.22.3"  # Tu meníme verziu pre celú aplikáciu
 
 class LicenseManager:
     def __init__(self):
@@ -421,34 +421,67 @@ class VideoScheduler(QMainWindow):
     def play_video2(self):
         try:
             self.logger.info("Spúšťam Video 2: %s", self.video2_path)
-            media = self.instance.media_new(self.video2_path)
-            self.player.set_media(media)
             
-            # Získame dĺžku videa v milisekundách
+            # Vypočítame čas ukončenia Video 2
+            media = self.instance.media_new(self.video2_path)
             media.parse()
             duration_ms = media.get_duration()
             duration_sec = duration_ms / 1000
-            self.logger.info(f"Dĺžka Video 2: {duration_sec} sekúnd")
+            
+            start_time = datetime.now()
+            end_time = start_time + timedelta(seconds=duration_sec)
+            
+            self.logger.info(f"Video 2 začiatok: {start_time.strftime('%H:%M:%S')}")
+            self.logger.info(f"Video 2 koniec (plánovaný): {end_time.strftime('%H:%M:%S')}")
+            self.logger.info(f"Video 1 bude pokračovať od pozície: {self.video1_position}")
+            
+            # Naplánujeme spustenie Video 1
+            resume_time = int((end_time - datetime.now()).total_seconds() * 1000)  # v milisekundách
+            QTimer.singleShot(resume_time, lambda: self.resume_video1())
             
             # Zachováme pôvodné informácie o plánovaných časoch
             self.video2_info_label.setText(self.calculate_end_times())
             
+            # Spustíme Video 2
+            self.player.set_media(media)
             self.player.play()
             self.current_video = 2
-            
-            def on_video2_end(event):
-                self.logger.info("Video 2 skončilo, vraciam sa na Video 1")
-                # Použijeme QTimer pre bezpečné prepnutie späť na Video 1
-                QTimer.singleShot(100, lambda: self.play_video1(resume=True))
-            
-            # Pripojíme event handler priamo k playeru
-            event_manager = self.player.event_manager()
-            event_manager.event_attach(vlc.EventType.MediaPlayerEndReached, on_video2_end)
             
         except Exception as e:
             self.logger.error("Chyba pri prehrávaní Video 2: %s", str(e))
             QMessageBox.critical(self, 'Chyba',
                                f'Nepodarilo sa prehrať Video 2:\n{str(e)}')
+    
+    def resume_video1(self):
+        """Metóda pre návrat na Video 1 v presne vypočítaný čas"""
+        try:
+            self.logger.info(f"Plánovaný návrat na Video 1 v čase: {datetime.now().strftime('%H:%M:%S')}")
+            self.logger.info(f"Nastavujem Video 1 na pozíciu: {self.video1_position}")
+            
+            # Vytvoríme nové médium pre Video 1
+            media = self.instance.media_new(self.video1_path)
+            self.player.set_media(media)
+            
+            # Počkáme na načítanie média
+            media.parse()
+            
+            # Nastavíme pozíciu pred spustením
+            self.player.set_position(self.video1_position)
+            self.video1_position = 0  # Resetujeme pozíciu
+            
+            # Spustíme prehrávanie
+            self.player.play()
+            self.current_video = 1
+            
+            # Zachováme informácie o Video 2
+            self.video2_info_label.setText(self.calculate_end_times())
+            
+            self.logger.info("Video 1 úspešne obnovené a spustené")
+            
+        except Exception as e:
+            self.logger.error(f"Chyba pri návrate na Video 1: {str(e)}")
+            QMessageBox.critical(self, 'Chyba',
+                               f'Nepodarilo sa obnoviť Video 1:\n{str(e)}')
     
     def check_schedule(self):
         current_time = datetime.now().strftime("%H:%M")
