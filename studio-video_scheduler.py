@@ -20,7 +20,7 @@ from PyQt5.QtGui import QIcon
 import subprocess
 
 # Na začiatku súboru pridáme konštantu pre verziu
-APP_VERSION = "1.22.11.0"  # Tu meníme verziu pre celú aplikáciu
+APP_VERSION = "1.22.12.0"  # Tu meníme verziu pre celú aplikáciu
 
 class LicenseManager:
     def __init__(self):
@@ -183,6 +183,16 @@ class VideoScheduler(QMainWindow):
         self.logger.info("Aplikácia sa spúšťa")
         
         self.license_manager = LicenseManager()
+        
+        # Nastavíme ikonu aplikácie
+        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'icon.ico')
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
+            # Nastavíme ikonu aj pre celú aplikáciu
+            QApplication.setWindowIcon(QIcon(icon_path))
+            self.logger.info(f"Ikona aplikácie nastavená z: {icon_path}")
+        else:
+            self.logger.warning(f"Súbor s ikonou nebol nájdený na: {icon_path}")
         
         # Pridáme menu s aktiváciou
         self.setup_menu()
@@ -1008,6 +1018,12 @@ class VideoScheduler(QMainWindow):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
+    
+    # Nastavíme ikonu pre celú aplikáciu ešte pred vytvorením okna
+    icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'icon.ico')
+    if os.path.exists(icon_path):
+        app.setWindowIcon(QIcon(icon_path))
+    
     window = VideoScheduler()
     window.show()
     sys.exit(app.exec_())
