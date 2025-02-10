@@ -178,6 +178,9 @@ class VideoScheduler(QMainWindow):
     def __init__(self):
         super().__init__()
         
+        # Nastavenie ikony - presunieme na začiatok pred vytvorením UI
+        self.setup_icon()
+        
         # Nastavenie logovania
         self.setup_logging()
         self.logger.info("Aplikácia sa spúšťa")
@@ -251,6 +254,71 @@ class VideoScheduler(QMainWindow):
                     self.setWindowIcon(QIcon(icon_path))
                     break
 
+    def setup_icon(self):
+        """Nastavenie ikony aplikácie"""
+        try:
+            icon_path = Path('icon.ico')
+            self.logger.info(f"Hľadám ikonu v: {icon_path.absolute()}")
+            
+            if icon_path.exists():
+                self.logger.info(f"Našla sa ikona: {icon_path}")
+                icon = QIcon(str(icon_path))
+                
+                if not icon.isNull():
+                    # Testovanie každej veľkosti samostatne
+                    for size in [16, 32, 48, 256]:
+                        pixmap = icon.pixmap(size, size)
+                        if not pixmap.isNull():
+                            self.logger.info(f"Ikona obsahuje veľkosť: {size}x{size}")
+                        else:
+                            self.logger.warning(f"Ikona NEOBSAHUJE veľkosť: {size}x{size}")
+                    
+                    # Nastavíme ikonu pre okno aj aplikáciu
+                    self.setWindowIcon(icon)
+                    QApplication.setWindowIcon(icon)
+                    self.logger.info("Ikona bola úspešne nastavená")
+                    return True
+                else:
+                    self.logger.error("Ikona je prázdna alebo poškodená")
+            else:
+                self.logger.error(f"Súbor icon.ico sa nenašiel v {icon_path.absolute()}")
+                
+            return False
+                
+        except Exception as e:
+            self.logger.error(f"Chyba pri nastavovaní ikony: {str(e)}", exc_info=True)
+            return False
+
+    def calculate_end_times(self):
+        try:
+            if not self.video2_path:
+                return ""
+                
+            # Vytvoríme dočasné VLC media pre získanie informácií
+            media = self.instance.media_new(self.video2_path)
+            media.parse()
+            duration_ms = media.get_duration()
+            duration_sec = duration_ms / 1000
+            
+            # Vytvoríme text s časmi ukončenia v novom formáte
+            end_times_text = f"Dĺžka videa: {int(duration_sec/60)}:{int(duration_sec%60):02d}\n\n"
+            end_times_text += "Plánované ukončenia:\n\n"
+            
+            for scheduled_time in sorted(self.scheduled_times):
+                # Prevedieme čas na datetime
+                today = datetime.now().date()
+                start_time = datetime.strptime(f"{today} {scheduled_time}", "%Y-%m-%d %H:%M")
+                end_time = start_time + timedelta(seconds=duration_sec)
+                
+                # Formát: "Spustenie HH:MM -> Koniec HH:MM"
+                end_times_text += f"Spustenie {scheduled_time:>5} -> Koniec {end_time.strftime('%H:%M:%S')}\n"
+            
+            return end_times_text
+            
+        except Exception as e:
+            self.logger.error(f"Chyba pri výpočte časov ukončenia: {str(e)}")
+            return "Nepodarilo sa vypočítať časy ukončenia"
+
     def init_ui(self):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -282,98 +350,64 @@ class VideoScheduler(QMainWindow):
         video2_group.addLayout(video2_header)
         
         # Časový výber a ovládanie
-        time_control_layout = QHBoxLayout()
+        time_control_layout = QVBoxLayout()  # Zmenené na vertikálny layout
         
-        # Časový výber
-        time_layout = QHBoxLayout()
+        # Horný rad - výber času a tlačidlo pridať
+        add_time_layout = QHBoxLayout()
         self.time_edit = QTimeEdit()
         self.time_edit.setDisplayFormat("HH:mm")
-        
-        # Tlačidlá pre časy
-        time_buttons_layout = QHBoxLayout()
         add_time_btn = QPushButton('Pridať čas')
-        remove_time_btn = QPushButton('Odstrániť čas')
         add_time_btn.clicked.connect(self.add_scheduled_time)
+        
+        add_time_layout.addWidget(QLabel('Čas spustenia:'))
+        add_time_layout.addWidget(self.time_edit)
+        add_time_layout.addWidget(add_time_btn)
+        add_time_layout.addStretch()
+        
+        # Spodný rad - tlačidlo odstrániť
+        remove_time_layout = QHBoxLayout()
+        remove_time_btn = QPushButton('Odstrániť označený čas')
         remove_time_btn.clicked.connect(self.remove_scheduled_time)
+        remove_time_layout.addWidget(remove_time_btn)
+        remove_time_layout.addStretch()
         
-        time_layout.addWidget(QLabel('Čas spustenia:'))
-        time_layout.addWidget(self.time_edit)
-        time_buttons_layout.addWidget(add_time_btn)
-        time_buttons_layout.addWidget(remove_time_btn)
+        # Pridanie do hlavného layoutu pre časy
+        time_control_layout.addLayout(add_time_layout)
+        time_control_layout.addLayout(remove_time_layout)
         
-        time_control_layout.addLayout(time_layout)
-        time_control_layout.addLayout(time_buttons_layout)
-        time_control_layout.addStretch()
+        # Zoznam časov a informácie - záhlavie v jednom riadku
+        headers_layout = QHBoxLayout()
+        headers_layout.addWidget(QLabel('Naplánované časy:'))
+        headers_layout.addWidget(QLabel('Informácie o Video 2:'))
         
-        # Zoznam časov a informácie - dva stĺpce rovnakej šírky
+        # Hlavný layout pre zoznamy
         info_layout = QHBoxLayout()
         
         # Ľavý stĺpec - zoznam časov
         times_column = QVBoxLayout()
-        times_column.addWidget(QLabel('Naplánované časy:'))
         self.time_list = QListWidget()
-        self.time_list.setMinimumWidth(300)  # Minimálna šírka
+        self.time_list.setMinimumWidth(200)  # Užší stĺpec
         times_column.addWidget(self.time_list)
         
         # Pravý stĺpec - informácie o Video 2
         info_column = QVBoxLayout()
-        info_column.addWidget(QLabel('Informácie o Video 2:'))
         self.video2_info_label = QLabel('Čaká sa na spustenie Video 2...')
-        self.video2_info_label.setMinimumWidth(300)  # Rovnaká minimálna šírka
-        self.video2_info_label.setAlignment(Qt.AlignTop)  # Zarovnanie hore
+        self.video2_info_label.setMinimumWidth(400)  # Širší stĺpec pre informácie
+        self.video2_info_label.setAlignment(Qt.AlignTop | Qt.AlignLeft)  # Zarovnanie vľavo hore
         info_column.addWidget(self.video2_info_label)
         
         # Pridanie stĺpcov do layoutu
-        info_layout.addLayout(times_column, 1)  # 1 = stretch factor
-        info_layout.addLayout(info_column, 1)   # 1 = stretch factor
-        
-        # Ovládacie tlačidlá
-        control_layout = QHBoxLayout()
-        self.start_btn = QPushButton('Spustiť')
-        self.start_btn.clicked.connect(self.start_playback)
-        self.stop_btn = QPushButton('Zastaviť')
-        self.stop_btn.clicked.connect(self.stop_playback)
-        
-        control_layout.addWidget(self.start_btn)
-        control_layout.addWidget(self.stop_btn)
+        info_layout.addLayout(times_column)
+        info_layout.addLayout(info_column)
         
         # Pridanie všetkých komponentov do hlavného layoutu
         layout.addLayout(video1_group)
         layout.addLayout(video2_group)
-        layout.addLayout(time_control_layout)
+        layout.addLayout(time_control_layout)  # Pridáme nový vertikálny layout
+        layout.addLayout(headers_layout)  # Pridáme záhlavie
         layout.addLayout(info_layout)
         layout.addLayout(control_layout)
         
-    def calculate_end_times(self):
-        try:
-            if not self.video2_path:
-                return ""
-                
-            # Vytvoríme dočasné VLC media pre získanie informácií
-            media = self.instance.media_new(self.video2_path)
-            media.parse()
-            duration_ms = media.get_duration()
-            duration_sec = duration_ms / 1000
-            
-            # Vytvoríme text s časmi ukončenia pre každé plánované spustenie
-            end_times_text = "Video 2 - Dĺžka: "
-            end_times_text += f"{int(duration_sec/60)}:{int(duration_sec%60):02d}\n\n"
-            end_times_text += "Plánované ukončenia:\n"
-            
-            for scheduled_time in sorted(self.scheduled_times):
-                # Prevedieme čas na datetime
-                today = datetime.now().date()
-                start_time = datetime.strptime(f"{today} {scheduled_time}", "%Y-%m-%d %H:%M")
-                end_time = start_time + timedelta(seconds=duration_sec)
-                
-                end_times_text += f"Spustenie {scheduled_time} -> Koniec {end_time.strftime('%H:%M:%S')}\n"
-            
-            return end_times_text
-            
-        except Exception as e:
-            self.logger.error(f"Chyba pri výpočte časov ukončenia: {str(e)}")
-            return "Nepodarilo sa vypočítať časy ukončenia"
-
     def select_video(self, video_num):
         filename, _ = QFileDialog.getOpenFileName(
             self, f'Select Video {video_num}',
