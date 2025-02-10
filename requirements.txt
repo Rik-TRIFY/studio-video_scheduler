@@ -1,9 +1,5 @@
 requests==2.31.0
 PyQt5==5.15.9
-python-vlc==3.0.18122
+python-vlc==3.0.20123
+pywin32==306
 nuitka==1.9.7
-ordered-set==4.1.0
-zstandard==0.22.0
-wheel==0.42.0
-# Potrebné pre build
-setuptools>=65.5.1
