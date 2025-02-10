@@ -20,7 +20,7 @@ from PyQt5.QtGui import QIcon
 import subprocess
 
 # Na začiatku súboru pridáme konštantu pre verziu
-APP_VERSION = "1.22.10"  # Tu meníme verziu pre celú aplikáciu
+APP_VERSION = "1.22.10.1"  # Tu meníme verziu pre celú aplikáciu
 
 class LicenseManager:
     def __init__(self):
@@ -827,51 +827,57 @@ class VideoScheduler(QMainWindow):
 
     def setup_logging(self):
         try:
-            # Nastavenie cesty k logom pre Windows
             if platform.system() == 'Windows':
-                # Použijeme priečinok Dokumenty
                 documents_path = Path(os.path.expanduser("~/Documents"))
                 log_dir = documents_path / 'VideoScheduler' / 'logs'
-            else:  # Linux/Mac
+            else:
                 log_dir = Path('/var/log/videoschedule')
             
-            # Pokus o vytvorenie priečinkov
-            try:
-                log_dir.mkdir(parents=True, exist_ok=True)  # Oprava: existok -> exist_ok
-                print(f"Priečinok pre logy vytvorený: {log_dir}")  # Dočasný print pre debug
-            except Exception as e:
-                print(f"Chyba pri vytváraní priečinka: {str(e)}")  # Dočasný print pre debug
-                # Fallback na AppData ak Documents zlyhá
-                log_dir = Path(os.getenv('APPDATA')) / 'VideoScheduler' / 'logs'
-                log_dir.mkdir(parents=True, exist_ok=True)  # Oprava: existok -> exist_ok
-                
-            # Vytvorenie log súboru
-            log_file = log_dir / f"videoschedule_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+            # Vytvoríme priečinok pre logy
+            log_dir.mkdir(parents=True, exist_ok=True)
             
-            # Nastavenie logovania
-            logging.basicConfig(
-                level=logging.INFO,
-                format='%(asctime)s - %(levellevel)s - %(message)s',
-                handlers=[
-                    logging.FileHandler(log_file, encoding='utf-8'),
-                    logging.StreamHandler()
-                ]
-            )
+            # Vytvoríme log súbor s aktuálnym časom
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            log_file = log_dir / f"videoschedule_{timestamp}.log"
             
-            self.logger = logging.getLogger(__name__)
-            self.logger.info("Aplikácia spustená - inicializácia logovania")
-            self.logger.info(f"Logy sa ukladajú do: {log_dir}")
+            # Vytvoríme handler pre súbor
+            file_handler = logging.FileHandler(log_file, mode='w', encoding='utf-8')
+            file_handler.setLevel(logging.INFO)
+            
+            # Vytvoríme handler pre konzolu
+            console_handler = logging.StreamHandler()
+            console_handler.setLevel(logging.INFO)
+            
+            # Vytvoríme formátovač
+            formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+            file_handler.setFormatter(formatter)
+            console_handler.setFormatter(formatter)
+            
+            # Vytvoríme logger
+            self.logger = logging.getLogger('VideoScheduler')
+            self.logger.setLevel(logging.INFO)
+            
+            # Odstránime existujúce handlery ak existujú
+            self.logger.handlers.clear()
+            
+            # Pridáme handlery do loggera
+            self.logger.addHandler(file_handler)
+            self.logger.addHandler(console_handler)
+            
+            # Vypneme propagáciu do root loggera
+            self.logger.propagate = False
+            
+            # Test logovania
+            self.logger.info("="*50)
+            self.logger.info("Logovanie inicializované")
+            self.logger.info(f"Logy sa ukladajú do: {log_file}")
             
         except Exception as e:
             print(f"Kritická chyba pri nastavovaní logovania: {str(e)}")
-            # Fallback na základné logovanie do konzoly
-            logging.basicConfig(
-                level=logging.INFO,
-                format='%(asctime)s - %(levellevel)s - %(message)s',
-                handlers=[logging.StreamHandler()]
-            )
-            self.logger = logging.getLogger(__name__)
-            self.logger.error(f"Nepodarilo sa nastaviť logovanie do súboru: {str(e)}")
+            # Fallback na základné konsolové logovanie
+            self.logger = logging.getLogger('VideoScheduler')
+            self.logger.addHandler(logging.StreamHandler())
+            self.logger.setLevel(logging.INFO)
 
     def setup_menu(self):
         menubar = self.menuBar()
