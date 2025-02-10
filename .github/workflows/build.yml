@@ -21,8 +21,10 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        pip install wheel setuptools
         pip install -r requirements.txt
-    
+        pip install nuitka
+        
     - name: Build with Nuitka
       run: |
         python -m nuitka --mingw64 --windows-disable-console --windows-icon-from-ico=icon.ico --onefile --include-package=requests --include-package=PyQt5 --include-package=vlc --include-qt-plugins=platforms,styles --enable-plugin=pyqt5 studio-video_scheduler.py
