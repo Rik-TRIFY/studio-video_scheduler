@@ -18,7 +18,7 @@ import requests
 import re
 
 # Na začiatku súboru pridáme konštantu pre verziu
-APP_VERSION = "1.22.1"  # Tu meníme verziu pre celú aplikáciu
+APP_VERSION = "1.22.2"  # Tu meníme verziu pre celú aplikáciu
 
 class LicenseManager:
     def __init__(self):
@@ -398,6 +398,10 @@ class VideoScheduler(QMainWindow):
             self.player.play()
             self.current_video = 1
             
+            # Zachováme informácie o Video 2 v pravom stĺpci
+            if self.video2_path:
+                self.video2_info_label.setText(self.calculate_end_times())
+            
             # Definujeme callback funkciu pre koniec videa
             def replay(event):
                 self.logger.info("Video 1 skončilo, prehrávam znova")
@@ -426,18 +430,16 @@ class VideoScheduler(QMainWindow):
             duration_sec = duration_ms / 1000
             self.logger.info(f"Dĺžka Video 2: {duration_sec} sekúnd")
             
-            # Aktualizujeme informácie v UI hneď po načítaní
-            self.video2_info_label.setText(
-                f'Video 2 - Dĺžka: {int(duration_sec/60)}:{int(duration_sec%60):02d}\n'
-                f'Končí v: {(datetime.now() + timedelta(seconds=duration_sec)).strftime("%H:%M:%S")}'
-            )
+            # Zachováme pôvodné informácie o plánovaných časoch
+            self.video2_info_label.setText(self.calculate_end_times())
             
             self.player.play()
             self.current_video = 2
             
             def on_video2_end(event):
                 self.logger.info("Video 2 skončilo, vraciam sa na Video 1")
-                self.play_video1(resume=True)
+                # Použijeme QTimer pre bezpečné prepnutie späť na Video 1
+                QTimer.singleShot(100, lambda: self.play_video1(resume=True))
             
             # Pripojíme event handler priamo k playeru
             event_manager = self.player.event_manager()
