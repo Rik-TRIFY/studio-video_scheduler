@@ -23,9 +23,13 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
     
+    - name: Compile resources
+      run: |
+        python compile_resources.py
+
     - name: Build with Nuitka
       run: |
-        python -m nuitka --mingw64 --windows-disable-console --onefile --assume-yes-for-downloads --include-package=requests --include-package=PyQt5 --include-package=vlc --include-qt-plugins=platforms,styles --enable-plugin=pyqt5 --windows-icon-from-ico=icon.ico --include-data-files=version_info.txt=version_info.txt --include-data-files=app.manifest=app.manifest --include-data-dir=.=icon.ico studio-video_scheduler.py
+        python -m nuitka --mingw64 --windows-disable-console --onefile --assume-yes-for-downloads --include-package=requests --include-package=PyQt5 --include-package=vlc --include-qt-plugins=platforms,styles --enable-plugin=pyqt5 --windows-icon-from-ico=icon.ico --include-data-dir=. --include-data-files=version_info.txt=version_info.txt --include-data-files=app.manifest=app.manifest --include-data-files=icon.ico=icon.ico studio-video_scheduler.py
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4

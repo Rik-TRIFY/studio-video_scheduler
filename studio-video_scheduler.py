@@ -18,9 +18,11 @@ import requests
 import re
 from PyQt5.QtGui import QIcon
 import subprocess
+import resources_rc
+from PyQt5.QtCore import QResource
 
 # Na začiatku súboru pridáme konštantu pre verziu
-APP_VERSION = "1.22.12.0"  # Tu meníme verziu pre celú aplikáciu
+APP_VERSION = "1.22.12.1"  # Tu meníme verziu pre celú aplikáciu
 
 class LicenseManager:
     def __init__(self):
@@ -182,7 +184,9 @@ class VideoScheduler(QMainWindow):
         self.setup_logging()
         self.logger.info("Aplikácia sa spúšťa")
         
-        # Odstránime nastavenie ikony tu, presunieme ho do setup_application_icon
+        # Nastavíme ikonu hneď na začiatku
+        self.setup_icon()
+        
         self.license_manager = LicenseManager()
         
         # Presunieme nastavenie ikony pred vytvorenie UI
@@ -272,6 +276,25 @@ class VideoScheduler(QMainWindow):
         except Exception as e:
             self.logger.error(f"Chyba pri nastavovaní ikony: {str(e)}")
             return False
+
+    def setup_icon(self):
+        """Nastaví ikonu aplikácie"""
+        try:
+            # Získame absolútnu cestu k ikone
+            base_path = os.path.dirname(os.path.abspath(__file__))
+            icon_path = os.path.join(base_path, 'icon.ico')
+            
+            if os.path.exists(icon_path):
+                icon = QIcon(icon_path)
+                # Nastavíme ikonu globálne pre celú aplikáciu
+                QApplication.instance().setWindowIcon(icon)
+                # Nastavíme ikonu pre hlavné okno
+                self.setWindowIcon(icon)
+                self.logger.info(f"Ikona nastavená z: {icon_path}")
+            else:
+                self.logger.error(f"Ikona nenájdená: {icon_path}")
+        except Exception as e:
+            self.logger.error(f"Chyba pri nastavovaní ikony: {str(e)}")
 
     def init_ui(self):
         central_widget = QWidget()
@@ -1039,8 +1062,6 @@ class VideoScheduler(QMainWindow):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    
-    # Odstránime nastavenie ikony tu, všetko sa rieši v setup_application_icon
     window = VideoScheduler()
     window.show()
     sys.exit(app.exec_())
