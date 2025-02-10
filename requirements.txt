@@ -1,7 +1,6 @@
 requests==2.31.0
 PyQt5==5.15.9
-python-vlc==3.0.20123
-pywin32==306
+python-vlc==3.0.18122
 nuitka==1.9.7
-ordered-set==4.1.0  # potrebné pre Nuitka
-zstandard==0.22.0   # potrebné pre Nuitka
+ordered-set==4.1.0
+zstandard==0.22.0
