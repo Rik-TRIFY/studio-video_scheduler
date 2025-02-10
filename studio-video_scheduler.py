@@ -182,6 +182,9 @@ class VideoScheduler(QMainWindow):
         self.setup_logging()
         self.logger.info("Aplikácia sa spúšťa")
         
+        # Nastavíme ikonu aplikácie čo najskôr
+        self.setup_application_icon()
+        
         self.license_manager = LicenseManager()
         
         # Nastavíme ikonu aplikácie
@@ -252,6 +255,20 @@ class VideoScheduler(QMainWindow):
         self.app = QApplication.instance()
         self.app.aboutToQuit.connect(self.on_close)
         
+    def setup_application_icon(self):
+        """Nastaví ikonu aplikácie"""
+        try:
+            icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'icon.ico')
+            if os.path.exists(icon_path):
+                app_icon = QIcon(icon_path)
+                self.setWindowIcon(app_icon)
+                QApplication.setWindowIcon(app_icon)
+                self.logger.info(f"Ikona aplikácie nastavená z: {icon_path}")
+            else:
+                self.logger.error(f"Súbor s ikonou nebol nájdený: {icon_path}")
+        except Exception as e:
+            self.logger.error(f"Chyba pri nastavovaní ikony: {str(e)}")
+
     def init_ui(self):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -1019,10 +1036,13 @@ class VideoScheduler(QMainWindow):
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     
-    # Nastavíme ikonu pre celú aplikáciu ešte pred vytvorením okna
-    icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'icon.ico')
-    if os.path.exists(icon_path):
-        app.setWindowIcon(QIcon(icon_path))
+    # Nastavíme ikonu pre celú aplikáciu
+    try:
+        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'icon.ico')
+        if os.path.exists(icon_path):
+            app.setWindowIcon(QIcon(icon_path))
+    except Exception as e:
+        print(f"Chyba pri nastavovaní ikony aplikácie: {str(e)}")
     
     window = VideoScheduler()
     window.show()
