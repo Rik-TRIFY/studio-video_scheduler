@@ -1,5 +1,5 @@
 requests==2.31.0
 PyQt5==5.15.9
-python-vlc==3.0.20123
+python-vlc==3.0.18122
 pywin32==306
 nuitka==1.9.7
