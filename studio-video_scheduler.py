@@ -201,17 +201,7 @@ class VideoScheduler(QMainWindow):
         self.instance = vlc.Instance()
         self.player = self.instance.media_player_new()
         
-        # Vytvoríme widget pre video
-        self.video_widget = QWidget()
-        self.video_widget.setStyleSheet("background-color: black;")
-        if platform.system() == "Windows":
-            self.player.set_hwnd(self.video_widget.winId())
-        else:
-            self.player.set_xwindow(self.video_widget.winId())
-            
-        # Nastavíme minimálnu veľkosť pre video
-        self.video_widget.setMinimumSize(640, 360)
-        
+        # Odstránime všetky referencie na video_widget
         self.current_video = None
         self.video1_path = ""
         self.video2_path = ""
@@ -246,9 +236,7 @@ class VideoScheduler(QMainWindow):
         self.setCentralWidget(central_widget)
         layout = QVBoxLayout(central_widget)
         
-        # Pridáme video widget na začiatok layoutu
-        layout.addWidget(self.video_widget)
-        
+        # Odstránime video widget z layoutu
         # Video 1 sekcia
         video1_group = QVBoxLayout()
         video1_header = QHBoxLayout()
@@ -406,7 +394,6 @@ class VideoScheduler(QMainWindow):
             self.logger.info(f"Parametre: resume={resume}, video1_position={self.video1_position}")
             self.logger.info(f"Cesta k videu: {self.video1_path}")
             
-            # Overíme či existuje video súbor
             if not os.path.exists(self.video1_path):
                 self.logger.error(f"Video súbor neexistuje: {self.video1_path}")
                 raise FileNotFoundError(f"Video súbor neexistuje: {self.video1_path}")
@@ -418,17 +405,14 @@ class VideoScheduler(QMainWindow):
             duration_ms = media.get_duration()
             self.logger.info(f"Dĺžka Video 1: {duration_ms/1000} sekúnd")
             
-            # Nastavíme video widget do popredia
-            self.video_widget.raise_()
-            self.video_widget.show()
-            
             # Ak máme pokračovať z uloženej pozície
             if resume and self.video1_position > 0:
                 saved_position = self.video1_position
                 self.logger.info(f"Nastavujem Video 1 na pozíciu: {saved_position} ({saved_position*100:.2f}%)")
                 self.player.set_position(saved_position)
                 self.video1_position = 0
-                
+            
+            # VLC samo vytvorí svoje okno
             self.player.play()
             self.current_video = 1
             
@@ -814,13 +798,13 @@ class VideoScheduler(QMainWindow):
             
             # Pokus o vytvorenie priečinkov
             try:
-                log_dir.mkdir(parents=True, exist_ok=True)
+                log_dir.mkdir(parents=True, exist_ok=True)  # Oprava: existok -> exist_ok
                 print(f"Priečinok pre logy vytvorený: {log_dir}")  # Dočasný print pre debug
             except Exception as e:
                 print(f"Chyba pri vytváraní priečinka: {str(e)}")  # Dočasný print pre debug
                 # Fallback na AppData ak Documents zlyhá
                 log_dir = Path(os.getenv('APPDATA')) / 'VideoScheduler' / 'logs'
-                log_dir.mkdir(parents=True, existok=True)
+                log_dir.mkdir(parents=True, exist_ok=True)  # Oprava: existok -> exist_ok
                 
             # Vytvorenie log súboru
             log_file = log_dir / f"videoschedule_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
@@ -885,7 +869,7 @@ class VideoScheduler(QMainWindow):
             else:
                 # Pre Linux/Mac
                 log_path = Path('/var/log/videoschedule')
-                if log_path exists():
+                if log_path.exists():  # Oprava: exists() -> exists
                     subprocess.run(['xdg-open', str(log_path)])  # Linux
                 else:
                     QMessageBox.warning(self, 'Upozornenie', 
