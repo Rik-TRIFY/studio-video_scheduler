@@ -18,7 +18,7 @@ import requests
 import re
 
 # Na začiatku súboru pridáme konštantu pre verziu
-APP_VERSION = "1.22.5"  # Tu meníme verziu pre celú aplikáciu
+APP_VERSION = "1.22.6"  # Tu meníme verziu pre celú aplikáciu
 
 class LicenseManager:
     def __init__(self):
@@ -207,6 +207,7 @@ class VideoScheduler(QMainWindow):
         self.video2_timer = QTimer()
         self.video2_timer.timeout.connect(self.check_schedule)
         self.video2_timer.start(1000)  # kontrola každú sekundu
+        self.last_schedule_check = None  # pridáme sledovanie poslednej kontroly
         
         self.phone_home = PhoneHome(self.license_manager, self.logger)
         # Odošleme report pri štarte aplikácie
@@ -424,107 +425,97 @@ class VideoScheduler(QMainWindow):
     
     def play_video2(self):
         try:
-            self.logger.info("Spúšťam Video 2: %s", self.video2_path)
+            # Uložíme pozíciu Video 1 pred prepnutím
+            self.video1_position = self.player.get_position()
+            self.logger.info(f"Ukladám pozíciu Video 1: {self.video1_position}")
             
-            # Vypočítame čas ukončenia Video 2
+            # Vytvoríme a analyzujeme Video 2
             media = self.instance.media_new(self.video2_path)
             media.parse()
+            
+            # Explicitne zastavíme Video 1
+            self.player.stop()
+            
+            # Nastavíme a spustíme Video 2
+            self.player.set_media(media)
+            self.player.set_position(0.0)  # Explicitne nastavíme na začiatok
+            self.player.play()
+            self.current_video = 2
+            
+            # Vypočítame presné časy pre logovanie a informačný panel
+            start_time = datetime.now()
             duration_ms = media.get_duration()
             duration_sec = duration_ms / 1000
-            
-            start_time = datetime.now()
             end_time = start_time + timedelta(seconds=duration_sec)
             
             self.logger.info(f"Video 2 začiatok: {start_time.strftime('%H:%M:%S')}")
             self.logger.info(f"Video 2 koniec (plánovaný): {end_time.strftime('%H:%M:%S')}")
-            self.logger.info(f"Video 1 bude pokračovať od pozície: {self.video1_position}")
             
-            # Naplánujeme spustenie Video 1
-            resume_time = int((end_time - datetime.now()).total_seconds() * 1000)  # v milisekundách
-            QTimer.singleShot(resume_time, self.resume_video1)
-            
-            # Zachováme pôvodné informácie o plánovaných časoch
+            # Aktualizujeme informačný panel
             self.video2_info_label.setText(self.calculate_end_times())
             
-            # Spustíme Video 2
-            self.player.set_media(media)
-            self.player.play()
-            self.current_video = 2
+            # Nastavíme časovač pre návrat na Video 1
+            QTimer.singleShot(int(duration_sec * 1000), self.resume_video1)
             
         except Exception as e:
-            self.logger.error("Chyba pri prehrávaní Video 2: %s", str(e))
-            QMessageBox.critical(self, 'Chyba',
-                               f'Nepodarilo sa prehrať Video 2:\n{str(e)}')
-    
+            self.logger.error(f"Chyba pri spúšťaní Video 2: {str(e)}")
+
     def resume_video1(self):
-        """Metóda pre návrat na Video 1 v presne vypočítaný čas"""
         try:
             self.logger.info(f"Plánovaný návrat na Video 1 v čase: {datetime.now().strftime('%H:%M:%S')}")
-            self.logger.info(f"Nastavujem Video 1 na pozíciu: {self.video1_position}")
             
-            # Vytvoríme nové médium pre Video 1
+            # Explicitne zastavíme Video 2
+            self.player.stop()
+            
+            # Pripravíme Video 1
             media = self.instance.media_new(self.video1_path)
             self.player.set_media(media)
-            
-            # Počkáme na načítanie média
             media.parse()
             
-            # Nastavíme pozíciu pred spustením
+            # Nastavíme uloženú pozíciu
+            self.logger.info(f"Nastavujem Video 1 na pozíciu: {self.video1_position}")
             self.player.set_position(self.video1_position)
-            saved_position = self.video1_position
-            self.video1_position = 0  # Resetujeme pozíciu
             
             # Spustíme prehrávanie
             self.player.play()
             self.current_video = 1
             
-            # Odstránime príznak prehrávania Video 2
-            if hasattr(self, '_video2_playing'):
-                delattr(self, '_video2_playing')
-            
-            # Zachováme informácie o Video 2
+            # Zachováme informačný panel
             self.video2_info_label.setText(self.calculate_end_times())
-            
-            self.logger.info("Video 1 úspešne obnovené a spustené")
-            
-            # Pre istotu ešte raz skontrolujeme pozíciu po krátkom čase
-            def check_position():
-                if self.player.get_position() < 0.01:  # Ak je video stále na začiatku
-                    self.logger.info(f"Opravujem pozíciu Video 1 na: {saved_position}")
-                    self.player.set_position(saved_position)
-            
-            QTimer.singleShot(200, check_position)
             
         except Exception as e:
             self.logger.error(f"Chyba pri návrate na Video 1: {str(e)}")
-            QMessageBox.critical(self, 'Chyba',
-                               f'Nepodarilo sa obnoviť Video 1:\n{str(e)}')
     
     def check_schedule(self):
-        if self.video2_scheduled:  # Ak už je Video 2 naplánované, nič nerobíme
+        current_time = datetime.now().strftime("%H:%M")
+        
+        # Zabránime viacnásobnej kontrole v tej istej minúte
+        if self.last_schedule_check == current_time:
             return
             
-        current_time = datetime.now().strftime("%H:%M")
+        self.last_schedule_check = current_time
+        
         if (current_time in self.scheduled_times and 
             self.video2_path and 
             self.current_video == 1):
             
-            self.video2_scheduled = True  # Označíme, že Video 2 je naplánované
+            self.logger.info(f"Naplánované spustenie Video 2 v čase: {current_time}")
             self.start_video2_sequence()
     
     def start_video2_sequence(self):
         """Spustí sekvenciu Video 2"""
         try:
-            # 1. Uložíme pozíciu Video 1
+            # Uložíme pozíciu Video 1 pred prepnutím
             self.video1_position = self.player.get_position()
             self.logger.info(f"Ukladám pozíciu Video 1: {self.video1_position}")
             
-            # 2. Pripravíme Video 2
+            # Pripravíme a analyzujeme Video 2
             media = self.instance.media_new(self.video2_path)
             media.parse()
             duration_ms = media.get_duration()
             duration_sec = duration_ms / 1000
             
+            # Vypočítame presné časy
             start_time = datetime.now()
             end_time = start_time + timedelta(seconds=duration_sec)
             
@@ -533,17 +524,21 @@ class VideoScheduler(QMainWindow):
             self.logger.info(f"Video 2 koniec (plánovaný): {end_time.strftime('%H:%M:%S')}")
             self.logger.info(f"Video 1 bude pokračovať od pozície: {self.video1_position}")
             
-            # 3. Spustíme Video 2
+            # Zastavíme aktuálne prehrávanie
+            self.player.stop()
+            
+            # Spustíme Video 2
             self.player.set_media(media)
             self.player.play()
             self.current_video = 2
             
-            # 4. Naplánujeme návrat na Video 1
-            QTimer.singleShot(int(duration_sec * 1000), self.start_video1_sequence)
+            # Naplánujeme návrat na Video 1
+            resume_time = int(duration_sec * 1000)
+            self.logger.info(f"Plánovanie návratu na Video 1 za {resume_time}ms")
+            QTimer.singleShot(resume_time, self.start_video1_sequence)
             
         except Exception as e:
             self.logger.error(f"Chyba pri spúšťaní Video 2: {str(e)}")
-            self.video2_scheduled = False
     
     def start_video1_sequence(self):
         """Spustí sekvenciu návratu na Video 1"""
@@ -551,36 +546,36 @@ class VideoScheduler(QMainWindow):
             self.logger.info(f"Plánovaný návrat na Video 1 v čase: {datetime.now().strftime('%H:%M:%S')}")
             self.logger.info(f"Nastavujem Video 1 na pozíciu: {self.video1_position}")
             
-            # 1. Zastavíme aktuálne prehrávanie
+            # Zastavíme aktuálne prehrávanie
             self.player.stop()
             
-            # 2. Pripravíme Video 1
+            # Pripravíme Video 1
             media = self.instance.media_new(self.video1_path)
             self.player.set_media(media)
             media.parse()
             
-            # 3. Nastavíme pozíciu a spustíme
-            self.player.set_position(self.video1_position)
+            # Nastavíme pozíciu
+            saved_position = self.video1_position
+            self.player.set_position(saved_position)
+            
+            # Spustíme prehrávanie
             self.player.play()
             self.current_video = 1
             
-            # 4. Resetujeme príznaky
-            self.video2_scheduled = False
-            
             self.logger.info("Video 1 úspešne obnovené a spustené")
             
-            # 5. Kontrola pozície po krátkom čase
+            # Kontrola pozície po spustení
             def verify_position():
                 current_pos = self.player.get_position()
-                if abs(current_pos - self.video1_position) > 0.01:
-                    self.logger.info(f"Opravujem pozíciu Video 1 na: {self.video1_position}")
-                    self.player.set_position(self.video1_position)
+                self.logger.info(f"Kontrola pozície Video 1: aktuálna={current_pos}, očakávaná={saved_position}")
+                if abs(current_pos - saved_position) > 0.01:
+                    self.logger.info(f"Opravujem pozíciu Video 1 na: {saved_position}")
+                    self.player.set_position(saved_position)
             
             QTimer.singleShot(200, verify_position)
             
         except Exception as e:
             self.logger.error(f"Chyba pri návrate na Video 1: {str(e)}")
-            self.video2_scheduled = False
     
     def check_license(self):
         info = self.license_manager.get_license_info()
@@ -826,4 +821,3 @@ if __name__ == '__main__':
     window = VideoScheduler()
     window.show()
     sys.exit(app.exec_())
-    
