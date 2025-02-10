@@ -20,7 +20,7 @@ from PyQt5.QtGui import QIcon
 import subprocess
 
 # Na začiatku súboru pridáme konštantu pre verziu
-APP_VERSION = "1.22.10.1"  # Tu meníme verziu pre celú aplikáciu
+APP_VERSION = "1.22.11.0"  # Tu meníme verziu pre celú aplikáciu
 
 class LicenseManager:
     def __init__(self):
@@ -438,7 +438,7 @@ class VideoScheduler(QMainWindow):
             self.current_video = 1
             
             # Spustíme kontrolný timer
-            self.video1_check_timer.start(100)  # kontrola každých 100ms
+            self.video1_check_timer.start(50)  # kontrola každých 50ms
             
             # Odstránime starý event handler
             # event_manager = self.player.event_manager()
@@ -455,15 +455,48 @@ class VideoScheduler(QMainWindow):
 
     def check_video1_end(self):
         """Kontroluje či video1 dosiahlo koniec a reštartuje ho"""
-        if self.current_video != 1 or not self.player.is_playing():
-            return
+        try:
+            if self.current_video != 1 or not self.player.is_playing():
+                return
+                
+            current_time = self.player.get_time()
+            if current_time < 0:  # VLC môže vrátiť -1 pri chybe
+                return
+                
+            # Pridáme debug log
+            self.logger.debug(f"Video1 pozícia: {current_time}/{self.video1_duration} ms")
             
-        current_time = self.player.get_time()
-        if current_time >= self.video1_duration - 100:  # 100ms pred koncom
-            self.logger.info("Video 1 sa blíži ku koncu, reštartujem")
-            self.player.set_position(0.0)
-            self.player.play()
-            self.logger.info("Video 1 reštartované od začiatku")
+            # Kontrola či sme blízko konca (posledných 500ms)
+            if self.video1_duration - current_time <= 500:
+                self.logger.info(f"Video 1 sa blíži ku koncu (time={current_time}ms, duration={self.video1_duration}ms)")
+                
+                # Vytvoríme nové media pre čisté prehratie
+                media = self.instance.media_new(self.video1_path)
+                media.parse()
+                self.player.set_media(media)
+                self.player.set_position(0.0)
+                self.player.play()
+                
+                self.logger.info("Video 1 reštartované od začiatku")
+                
+                # Kontrola či sa video skutočne spustilo
+                QTimer.singleShot(100, self._verify_video1_playing)
+                
+        except Exception as e:
+            self.logger.error(f"Chyba pri kontrole konca videa: {str(e)}", exc_info=True)
+
+    def _verify_video1_playing(self):
+        """Overí či sa Video 1 skutočne prehráva"""
+        try:
+            if not self.player.is_playing():
+                self.logger.warning("Video 1 sa nezačalo prehrávať po reštarte!")
+                self.player.play()
+            else:
+                current_pos = self.player.get_position()
+                current_time = self.player.get_time()
+                self.logger.info(f"Video 1 sa prehráva: pos={current_pos:.4f}, time={current_time}ms")
+        except Exception as e:
+            self.logger.error(f"Chyba pri verifikácii prehrávania: {str(e)}")
 
     def _restart_video1_internal(self):
         """Interná metóda pre reštart Video 1"""
