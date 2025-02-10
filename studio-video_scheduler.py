@@ -18,7 +18,7 @@ import requests
 import re
 
 # Na začiatku súboru pridáme konštantu pre verziu
-APP_VERSION = "1.22.0"  # Tu meníme verziu pre celú aplikáciu
+APP_VERSION = "1.22.1"  # Tu meníme verziu pre celú aplikáciu
 
 class LicenseManager:
     def __init__(self):
@@ -299,6 +299,36 @@ class VideoScheduler(QMainWindow):
         layout.addWidget(remove_time_btn)
         layout.addLayout(control_layout)
         
+    def calculate_end_times(self):
+        try:
+            if not self.video2_path:
+                return ""
+                
+            # Vytvoríme dočasné VLC media pre získanie informácií
+            media = self.instance.media_new(self.video2_path)
+            media.parse()
+            duration_ms = media.get_duration()
+            duration_sec = duration_ms / 1000
+            
+            # Vytvoríme text s časmi ukončenia pre každé plánované spustenie
+            end_times_text = "Video 2 - Dĺžka: "
+            end_times_text += f"{int(duration_sec/60)}:{int(duration_sec%60):02d}\n\n"
+            end_times_text += "Plánované ukončenia:\n"
+            
+            for scheduled_time in sorted(self.scheduled_times):
+                # Prevedieme čas na datetime
+                today = datetime.now().date()
+                start_time = datetime.strptime(f"{today} {scheduled_time}", "%Y-%m-%d %H:%M")
+                end_time = start_time + timedelta(seconds=duration_sec)
+                
+                end_times_text += f"Spustenie {scheduled_time} -> Koniec {end_time.strftime('%H:%M:%S')}\n"
+            
+            return end_times_text
+            
+        except Exception as e:
+            self.logger.error(f"Chyba pri výpočte časov ukončenia: {str(e)}")
+            return "Nepodarilo sa vypočítať časy ukončenia"
+
     def select_video(self, video_num):
         filename, _ = QFileDialog.getOpenFileName(
             self, f'Select Video {video_num}',
@@ -311,29 +341,8 @@ class VideoScheduler(QMainWindow):
             else:
                 self.video2_path = filename
                 self.video2_label.setText(f'Video 2: {filename}')
-                
-                # Zistíme informácie o Video 2 hneď po jeho výbere
-                try:
-                    # Vytvoríme dočasné VLC media pre získanie informácií
-                    media = self.instance.media_new(filename)
-                    media.parse()
-                    duration_ms = media.get_duration()
-                    duration_sec = duration_ms / 1000
-                    
-                    # Vypočítame čas ukončenia pre aktuálny čas
-                    end_time = (datetime.now() + timedelta(seconds=duration_sec)).strftime("%H:%M:%S")
-                    
-                    # Aktualizujeme informácie v UI
-                    self.video2_info_label.setText(
-                        f'Video 2 - Dĺžka: {int(duration_sec/60)}:{int(duration_sec%60):02d}\n'
-                        f'Predpokladaný čas ukončenia: {end_time}\n'
-                        f'(pri okamžitom spustení)'
-                    )
-                    
-                    self.logger.info(f"Video 2 informácie - Dĺžka: {duration_sec} sekúnd")
-                except Exception as e:
-                    self.logger.error(f"Chyba pri získavaní informácií o Video 2: {str(e)}")
-                    self.video2_info_label.setText('Nepodarilo sa získať informácie o Video 2')
+                # Aktualizujeme informácie o Video 2
+                self.video2_info_label.setText(self.calculate_end_times())
     
     def add_scheduled_time(self):
         time = self.time_edit.time().toString("HH:mm")
@@ -341,6 +350,9 @@ class VideoScheduler(QMainWindow):
             self.time_list.addItem(time)
             self.scheduled_times.append(time)
             self.scheduled_times.sort()
+            # Aktualizujeme informácie o časoch ukončenia
+            if self.video2_path:
+                self.video2_info_label.setText(self.calculate_end_times())
     
     def remove_scheduled_time(self):
         current_item = self.time_list.currentItem()
@@ -348,6 +360,9 @@ class VideoScheduler(QMainWindow):
             time = current_item.text()
             self.scheduled_times.remove(time)
             self.time_list.takeItem(self.time_list.row(current_item))
+            # Aktualizujeme informácie o časoch ukončenia
+            if self.video2_path:
+                self.video2_info_label.setText(self.calculate_end_times())
     
     def start_playback(self):
         if self.video1_path:
@@ -369,17 +384,17 @@ class VideoScheduler(QMainWindow):
             # Ak máme pokračovať z uloženej pozície
             if resume and self.video1_position > 0:
                 saved_position = self.video1_position
-                self.logger.info(f"Plánujem nastaviť Video 1 na pozíciu: {saved_position}")
+                self.logger.info(f"Nastavujem Video 1 na pozíciu: {saved_position}")
                 
-                def set_position():
-                    self.logger.info(f"Nastavujem Video 1 na pozíciu: {saved_position}")
-                    self.player.set_position(saved_position)
-                    # Resetujeme pozíciu až po úspešnom nastavení
-                    self.video1_position = 0
+                # Počkáme na načítanie média
+                media.parse()
                 
-                # Počkáme dlhšie, aby sa video určite načítalo
-                QTimer.singleShot(200, set_position)
+                # Nastavíme pozíciu pred spustením
+                self.player.set_position(saved_position)
+                # Resetujeme pozíciu až po nastavení
+                self.video1_position = 0
             
+            # Spustíme prehrávanie až po nastavení pozície
             self.player.play()
             self.current_video = 1
             
@@ -391,7 +406,7 @@ class VideoScheduler(QMainWindow):
                     self.player.play()
             
             # Správne pripojenie event handlera
-            event_manager = media.event_manager()
+            event_manager = self.player.event_manager()
             event_manager.event_attach(vlc.EventType.MediaPlayerEndReached, replay)
             
         except Exception as e:
@@ -420,8 +435,13 @@ class VideoScheduler(QMainWindow):
             self.player.play()
             self.current_video = 2
             
-            # Nastavíme časovač na prepnutie späť na Video 1
-            QTimer.singleShot(int(duration_ms), lambda: self.play_video1(resume=True))
+            def on_video2_end(event):
+                self.logger.info("Video 2 skončilo, vraciam sa na Video 1")
+                self.play_video1(resume=True)
+            
+            # Pripojíme event handler priamo k playeru
+            event_manager = self.player.event_manager()
+            event_manager.event_attach(vlc.EventType.MediaPlayerEndReached, on_video2_end)
             
         except Exception as e:
             self.logger.error("Chyba pri prehrávaní Video 2: %s", str(e))
@@ -433,10 +453,12 @@ class VideoScheduler(QMainWindow):
         if (current_time in self.scheduled_times and 
             self.video2_path and 
             self.current_video == 1):
-            # Uložíme si pozíciu Video 1 pred prepnutím
-            self.video1_position = self.player.get_position()
-            self.logger.info(f"Ukladám pozíciu Video 1: {self.video1_position}")
-            self.play_video2()
+            # Pridáme kontrolu, či už Video 2 nebeží
+            if self.current_video != 2:
+                # Uložíme si pozíciu Video 1 pred prepnutím
+                self.video1_position = self.player.get_position()
+                self.logger.info(f"Ukladám pozíciu Video 1: {self.video1_position}")
+                self.play_video2()
     
     def check_license(self):
         info = self.license_manager.get_license_info()
