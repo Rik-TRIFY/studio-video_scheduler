@@ -16,9 +16,11 @@ from PyQt5.QtWidgets import QAction
 import platform
 import requests
 import re
+from PyQt5.QtGui import QIcon
+import subprocess
 
 # Na začiatku súboru pridáme konštantu pre verziu
-APP_VERSION = "1.22.6"  # Tu meníme verziu pre celú aplikáciu
+APP_VERSION = "1.22.7"  # Tu meníme verziu pre celú aplikáciu
 
 class LicenseManager:
     def __init__(self):
@@ -225,6 +227,8 @@ class VideoScheduler(QMainWindow):
         self.timer.timeout.connect(self.check_schedule)
         self.timer.start(1000)  # kontrola každú sekundu
         
+        self.setWindowIcon(QIcon('icon.ico'))  # Pridajte ikonu do rovnakého priečinka ako .py súbor
+        
     def init_ui(self):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -234,7 +238,7 @@ class VideoScheduler(QMainWindow):
         video1_group = QVBoxLayout()
         video1_header = QHBoxLayout()
         
-        self.video1_label = QLabel('Video 1 (slučka): Nevybrané')
+        self.video1_label = QLabel('Video 1: Nevybrané (slučka)')
         self.video1_btn = QPushButton('Vybrať Video 1')
         self.video1_btn.clicked.connect(lambda: self.select_video(1))
         
@@ -342,7 +346,7 @@ class VideoScheduler(QMainWindow):
         if filename:
             if video_num == 1:
                 self.video1_path = filename
-                self.video1_label.setText(f'Video 1: {filename}')
+                self.video1_label.setText(f'Video 1: {filename} (slučka)')  # Pridáme (slučka) do textu
             else:
                 self.video2_path = filename
                 self.video2_label.setText(f'Video 2: {filename}')
@@ -382,47 +386,97 @@ class VideoScheduler(QMainWindow):
     
     def play_video1(self, resume=True):
         try:
-            self.logger.info("Spúšťam Video 1: %s", self.video1_path)
+            self.logger.info("="*50)
+            self.logger.info("Začiatok sekvencie play_video1")
+            self.logger.info(f"Parametre: resume={resume}, video1_position={self.video1_position}")
+            self.logger.info(f"Cesta k videu: {self.video1_path}")
+            
             media = self.instance.media_new(self.video1_path)
-            self.player.set_media(media)
+            media.parse()
+            duration_ms = media.get_duration()
+            self.logger.info(f"Dĺžka Video 1: {duration_ms/1000} sekúnd")
             
             # Ak máme pokračovať z uloženej pozície
             if resume and self.video1_position > 0:
                 saved_position = self.video1_position
-                self.logger.info(f"Nastavujem Video 1 na pozíciu: {saved_position}")
-                
-                # Počkáme na načítanie média
-                media.parse()
-                
-                # Nastavíme pozíciu pred spustením
+                self.logger.info(f"Nastavujem Video 1 na pozíciu: {saved_position} ({saved_position*100:.2f}%)")
                 self.player.set_position(saved_position)
-                # Resetujeme pozíciu až po nastavení
                 self.video1_position = 0
-            
-            # Spustíme prehrávanie až po nastavení pozície
+                
             self.player.play()
             self.current_video = 1
             
-            # Zachováme informácie o Video 2 v pravom stĺpci
-            if self.video2_path:
-                self.video2_info_label.setText(self.calculate_end_times())
-            
-            # Definujeme callback funkciu pre koniec videa
             def replay(event):
-                self.logger.info("Video 1 skončilo, prehrávam znova")
+                self.logger.info("="*30)
+                self.logger.info("Video 1 dosiahlo koniec")
+                current_pos = self.player.get_position()
+                self.logger.info(f"Posledná pozícia pred reštartom: {current_pos}")
+                
                 if self.current_video == 1:
-                    self.player.set_position(0)
-                    self.player.play()
+                    self.logger.info("Spúšťam reštart Video 1")
+                    QTimer.singleShot(50, lambda: self._restart_video1_internal())
             
-            # Správne pripojenie event handlera
             event_manager = self.player.event_manager()
             event_manager.event_attach(vlc.EventType.MediaPlayerEndReached, replay)
+            self.logger.info("Event handler pre koniec videa pripojený")
+            self.logger.info("="*50)
             
         except Exception as e:
-            self.logger.error("Chyba pri prehrávaní Video 1: %s", str(e))
-            QMessageBox.critical(self, 'Chyba',
-                               f'Nepodarilo sa prehrať Video 1:\n{str(e)}')
-    
+            self.logger.error("!!!"*20)
+            self.logger.error(f"Kritická chyba v play_video1: {str(e)}", exc_info=True)
+            self.logger.error("!!!"*20)
+
+    def _restart_video1_internal(self):
+        """Interná metóda pre reštart Video 1"""
+        try:
+            self.logger.info("-"*30)
+            self.logger.info("Začiatok reštartu Video 1")
+            
+            # Zaznamenáme stav pred reštartom
+            was_playing = self.player.is_playing()
+            current_pos = self.player.get_position()
+            self.logger.info(f"Stav pred reštartom: playing={was_playing}, position={current_pos}")
+            
+            self.player.stop()
+            self.player.set_position(0.0)
+            self.player.play()
+            
+            # Overíme stav po reštarte
+            QTimer.singleShot(100, lambda: self._verify_video1_restart())
+            
+        except Exception as e:
+            self.logger.error(f"Chyba pri reštarte Video 1: {str(e)}", exc_info=True)
+
+    def _verify_video1_restart(self):
+        """Kontrola správneho reštartu Video 1"""
+        try:
+            is_playing = self.player.is_playing()
+            current_pos = self.player.get_position()
+            self.logger.info(f"Kontrola po reštarte: playing={is_playing}, position={current_pos}")
+            
+            if not is_playing:
+                self.logger.warning("Video 1 sa nezačalo prehrávať po reštarte!")
+                self.player.play()
+            elif current_pos > 0.01:
+                self.logger.warning(f"Video 1 nezačalo od začiatku! Pozícia: {current_pos}")
+                self.player.set_position(0.0)
+                
+            self.logger.info("Reštart Video 1 dokončený")
+            self.logger.info("-"*30)
+            
+        except Exception as e:
+            self.logger.error(f"Chyba pri verifikácii reštartu: {str(e)}", exc_info=True)
+
+    def restart_video1(self):
+        """Metóda pre reštart Video 1 od začiatku"""
+        try:
+            self.logger.info("Reštartujem Video 1 od začiatku")
+            self.player.stop()
+            self.player.set_position(0.0)
+            self.player.play()
+        except Exception as e:
+            self.logger.error(f"Chyba pri reštarte Video 1: {str(e)}")
+
     def play_video2(self):
         try:
             # Uložíme pozíciu Video 1 pred prepnutím
@@ -487,20 +541,35 @@ class VideoScheduler(QMainWindow):
             self.logger.error(f"Chyba pri návrate na Video 1: {str(e)}")
     
     def check_schedule(self):
-        current_time = datetime.now().strftime("%H:%M")
-        
-        # Zabránime viacnásobnej kontrole v tej istej minúte
-        if self.last_schedule_check == current_time:
-            return
+        try:
+            current_time = datetime.now().strftime("%H:%M")
             
-        self.last_schedule_check = current_time
-        
-        if (current_time in self.scheduled_times and 
-            self.video2_path and 
-            self.current_video == 1):
+            if self.last_schedule_check == current_time:
+                return
+                
+            self.last_schedule_check = current_time
+            self.logger.debug(f"Kontrola časov: current={current_time}, scheduled={self.scheduled_times}")
             
-            self.logger.info(f"Naplánované spustenie Video 2 v čase: {current_time}")
-            self.start_video2_sequence()
+            if self.player.is_playing():
+                is_playing = True
+                current_pos = self.player.get_position()
+                current_time_ms = self.player.get_time()
+                self.logger.info(f"Stav prehrávania: position={current_pos:.4f}, time={current_time_ms}ms")
+            else:
+                is_playing = False
+                self.logger.warning("Video nie je momentálne prehrávané!")
+            
+            if is_playing and current_time in self.scheduled_times:
+                self.video1_position = self.player.get_position()
+                self.logger.info("="*40)
+                self.logger.info(f"Našiel sa naplánovaný čas: {current_time}")
+                self.logger.info(f"Aktuálna pozícia Video 1: {self.video1_position:.4f}")
+                
+                if self.video2_path and self.current_video == 1:
+                    self.start_video2_sequence()
+                    
+        except Exception as e:
+            self.logger.error(f"Chyba v check_schedule: {str(e)}", exc_info=True)
     
     def start_video2_sequence(self):
         """Spustí sekvenciu Video 2"""
@@ -747,7 +816,7 @@ class VideoScheduler(QMainWindow):
             # Fallback na základné logovanie do konzoly
             logging.basicConfig(
                 level=logging.INFO,
-                format='%(asctime)s - %(levelname)s - %(message)s',
+                format='%(asctime)s - %(levellevel)s - %(message)s',
                 handlers=[logging.StreamHandler()]
             )
             self.logger = logging.getLogger(__name__)
@@ -762,10 +831,41 @@ class VideoScheduler(QMainWindow):
         activate_action.triggered.connect(self.show_activation_dialog)
         help_menu.addAction(activate_action)
         
+        # Pridáme položku Logy
+        logs_action = QAction('Logy', self)
+        logs_action.triggered.connect(self.open_logs_folder)
+        help_menu.addAction(logs_action)
+        
         # O programe
         about_action = QAction('O programe', self)
         about_action.triggered.connect(self.show_about_dialog)
         help_menu.addAction(about_action)
+
+    def open_logs_folder(self):
+        """Otvorí priečinok s logmi"""
+        try:
+            if platform.system() == 'Windows':
+                log_path = Path(os.path.expanduser("~/Documents/VideoScheduler/logs"))
+                if not log_path.exists():
+                    log_path = Path(os.getenv('APPDATA')) / 'VideoScheduler' / 'logs'
+                
+                if log_path.exists():
+                    subprocess.run(['explorer', str(log_path)])
+                else:
+                    QMessageBox.warning(self, 'Upozornenie', 
+                                      'Priečinok s logmi zatiaľ neexistuje.')
+            else:
+                # Pre Linux/Mac
+                log_path = Path('/var/log/videoschedule')
+                if log_path.exists():
+                    subprocess.run(['xdg-open', str(log_path)])  # Linux
+                else:
+                    QMessageBox.warning(self, 'Upozornenie', 
+                                      'Priečinok s logmi zatiaľ neexistuje.')
+        except Exception as e:
+            self.logger.error(f"Chyba pri otváraní priečinka s logmi: {str(e)}")
+            QMessageBox.critical(self, 'Chyba',
+                               'Nepodarilo sa otvoriť priečinok s logmi.')
 
     def show_about_dialog(self):
         info = self.license_manager.get_license_info()
