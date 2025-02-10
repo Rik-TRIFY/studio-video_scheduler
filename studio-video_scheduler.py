@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QPushButton, QWidget,
                             QVBoxLayout, QHBoxLayout, QFileDialog, QLabel, 
                             QTimeEdit, QCheckBox, QListWidget, QMessageBox,
                             QInputDialog, QLineEdit, QDialog, QDialogButtonBox)
-from PyQt5.QtCore import QTime, QTimer
+from PyQt5.QtCore import QTime, QTimer, Qt
 from datetime import datetime, timedelta
 import logging
 from PyQt5.QtWidgets import QAction
@@ -20,7 +20,7 @@ from PyQt5.QtGui import QIcon
 import subprocess
 
 # Na začiatku súboru pridáme konštantu pre verziu
-APP_VERSION = "1.22.11.0"  # Tu meníme verziu pre celú aplikáciu
+APP_VERSION = "1.22.12.0"  # Tu meníme verziu pre celú aplikáciu
 
 class LicenseManager:
     def __init__(self):
@@ -242,6 +242,15 @@ class VideoScheduler(QMainWindow):
         self.app = QApplication.instance()
         self.app.aboutToQuit.connect(self.on_close)
         
+        # Nastavenie ikony aplikácie
+        if platform.system() == "Windows":
+            # Hľadáme vlastnú ikonu
+            icon_paths = ['icon.ico', 'app.ico', 'videoschedule.ico']
+            for icon_path in icon_paths:
+                if os.path.exists(icon_path):
+                    self.setWindowIcon(QIcon(icon_path))
+                    break
+
     def init_ui(self):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -272,21 +281,51 @@ class VideoScheduler(QMainWindow):
         video2_header.addWidget(self.video2_btn)
         video2_group.addLayout(video2_header)
         
+        # Časový výber a ovládanie
+        time_control_layout = QHBoxLayout()
+        
         # Časový výber
         time_layout = QHBoxLayout()
         self.time_edit = QTimeEdit()
         self.time_edit.setDisplayFormat("HH:mm")
-        add_time_btn = QPushButton('Pridať čas spustenia')
+        
+        # Tlačidlá pre časy
+        time_buttons_layout = QHBoxLayout()
+        add_time_btn = QPushButton('Pridať čas')
+        remove_time_btn = QPushButton('Odstrániť čas')
         add_time_btn.clicked.connect(self.add_scheduled_time)
-        
-        time_layout.addWidget(QLabel('Pridať čas spustenia:'))
-        time_layout.addWidget(self.time_edit)
-        time_layout.addWidget(add_time_btn)
-        
-        # Seznam naplánovaných časov
-        self.time_list = QListWidget()
-        remove_time_btn = QPushButton('Odstrániť vybraný čas')
         remove_time_btn.clicked.connect(self.remove_scheduled_time)
+        
+        time_layout.addWidget(QLabel('Čas spustenia:'))
+        time_layout.addWidget(self.time_edit)
+        time_buttons_layout.addWidget(add_time_btn)
+        time_buttons_layout.addWidget(remove_time_btn)
+        
+        time_control_layout.addLayout(time_layout)
+        time_control_layout.addLayout(time_buttons_layout)
+        time_control_layout.addStretch()
+        
+        # Zoznam časov a informácie - dva stĺpce rovnakej šírky
+        info_layout = QHBoxLayout()
+        
+        # Ľavý stĺpec - zoznam časov
+        times_column = QVBoxLayout()
+        times_column.addWidget(QLabel('Naplánované časy:'))
+        self.time_list = QListWidget()
+        self.time_list.setMinimumWidth(300)  # Minimálna šírka
+        times_column.addWidget(self.time_list)
+        
+        # Pravý stĺpec - informácie o Video 2
+        info_column = QVBoxLayout()
+        info_column.addWidget(QLabel('Informácie o Video 2:'))
+        self.video2_info_label = QLabel('Čaká sa na spustenie Video 2...')
+        self.video2_info_label.setMinimumWidth(300)  # Rovnaká minimálna šírka
+        self.video2_info_label.setAlignment(Qt.AlignTop)  # Zarovnanie hore
+        info_column.addWidget(self.video2_info_label)
+        
+        # Pridanie stĺpcov do layoutu
+        info_layout.addLayout(times_column, 1)  # 1 = stretch factor
+        info_layout.addLayout(info_column, 1)   # 1 = stretch factor
         
         # Ovládacie tlačidlá
         control_layout = QHBoxLayout()
@@ -298,28 +337,11 @@ class VideoScheduler(QMainWindow):
         control_layout.addWidget(self.start_btn)
         control_layout.addWidget(self.stop_btn)
         
-        # Upravíme layout pre zoznam časov a informácie o Video 2
-        times_layout = QHBoxLayout()
-        
-        # Ľavá strana - zoznam časov
-        times_left = QVBoxLayout()
-        times_left.addWidget(QLabel('Naplánované časy:'))
-        times_left.addWidget(self.time_list)
-        times_layout.addLayout(times_left)
-        
-        # Pravá strana - informácie o Video 2
-        times_right = QVBoxLayout()
-        times_right.addWidget(QLabel('Informácie o Video 2:'))
-        self.video2_info_label = QLabel('Čaká sa na spustenie Video 2...')
-        times_right.addWidget(self.video2_info_label)
-        times_layout.addLayout(times_right)
-        
         # Pridanie všetkých komponentov do hlavného layoutu
         layout.addLayout(video1_group)
         layout.addLayout(video2_group)
-        layout.addLayout(time_layout)
-        layout.addLayout(times_layout)
-        layout.addWidget(remove_time_btn)
+        layout.addLayout(time_control_layout)
+        layout.addLayout(info_layout)
         layout.addLayout(control_layout)
         
     def calculate_end_times(self):
@@ -370,10 +392,23 @@ class VideoScheduler(QMainWindow):
     def add_scheduled_time(self):
         time = self.time_edit.time().toString("HH:mm")
         if time not in [self.time_list.item(i).text() for i in range(self.time_list.count())]:
-            self.time_list.addItem(time)
+            # Nájdeme správnu pozíciu pre nový čas
+            new_time = datetime.strptime(time, "%H:%M").time()
+            insert_pos = 0
+            
+            for i in range(self.time_list.count()):
+                current_time = datetime.strptime(self.time_list.item(i).text(), "%H:%M").time()
+                if new_time > current_time:
+                    insert_pos = i + 1
+                else:
+                    break
+            
+            # Vložíme čas na správnu pozíciu
+            self.time_list.insertItem(insert_pos, time)
             self.scheduled_times.append(time)
-            self.scheduled_times.sort()
-            # Aktualizujeme informácie o časoch ukončenia
+            self.scheduled_times.sort()  # Zoradíme aj backend list
+            
+            # Aktualizujeme informácie
             if self.video2_path:
                 self.video2_info_label.setText(self.calculate_end_times())
     
