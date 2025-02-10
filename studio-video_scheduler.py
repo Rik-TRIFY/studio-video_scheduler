@@ -18,7 +18,7 @@ import requests
 import re
 
 # Na začiatku súboru pridáme konštantu pre verziu
-APP_VERSION = "1.21.3"  # Tu meníme verziu pre celú aplikáciu
+APP_VERSION = "1.22.0"  # Tu meníme verziu pre celú aplikáciu
 
 class LicenseManager:
     def __init__(self):
