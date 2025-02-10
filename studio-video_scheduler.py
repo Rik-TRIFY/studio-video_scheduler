@@ -20,7 +20,7 @@ from PyQt5.QtGui import QIcon
 import subprocess
 
 # Na začiatku súboru pridáme konštantu pre verziu
-APP_VERSION = "1.22.7"  # Tu meníme verziu pre celú aplikáciu
+APP_VERSION = "1.22.8"  # Tu meníme verziu pre celú aplikáciu
 
 class LicenseManager:
     def __init__(self):
@@ -200,6 +200,18 @@ class VideoScheduler(QMainWindow):
         # VLC inštancia
         self.instance = vlc.Instance()
         self.player = self.instance.media_player_new()
+        
+        # Vytvoríme widget pre video
+        self.video_widget = QWidget()
+        self.video_widget.setStyleSheet("background-color: black;")
+        if platform.system() == "Windows":
+            self.player.set_hwnd(self.video_widget.winId())
+        else:
+            self.player.set_xwindow(self.video_widget.winId())
+            
+        # Nastavíme minimálnu veľkosť pre video
+        self.video_widget.setMinimumSize(640, 360)
+        
         self.current_video = None
         self.video1_path = ""
         self.video2_path = ""
@@ -233,6 +245,9 @@ class VideoScheduler(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         layout = QVBoxLayout(central_widget)
+        
+        # Pridáme video widget na začiatok layoutu
+        layout.addWidget(self.video_widget)
         
         # Video 1 sekcia
         video1_group = QVBoxLayout()
@@ -391,10 +406,21 @@ class VideoScheduler(QMainWindow):
             self.logger.info(f"Parametre: resume={resume}, video1_position={self.video1_position}")
             self.logger.info(f"Cesta k videu: {self.video1_path}")
             
+            # Overíme či existuje video súbor
+            if not os.path.exists(self.video1_path):
+                self.logger.error(f"Video súbor neexistuje: {self.video1_path}")
+                raise FileNotFoundError(f"Video súbor neexistuje: {self.video1_path}")
+            
             media = self.instance.media_new(self.video1_path)
             media.parse()
+            self.player.set_media(media)
+            
             duration_ms = media.get_duration()
             self.logger.info(f"Dĺžka Video 1: {duration_ms/1000} sekúnd")
+            
+            # Nastavíme video widget do popredia
+            self.video_widget.raise_()
+            self.video_widget.show()
             
             # Ak máme pokračovať z uloženej pozície
             if resume and self.video1_position > 0:
@@ -425,6 +451,8 @@ class VideoScheduler(QMainWindow):
             self.logger.error("!!!"*20)
             self.logger.error(f"Kritická chyba v play_video1: {str(e)}", exc_info=True)
             self.logger.error("!!!"*20)
+            QMessageBox.critical(self, 'Chyba',
+                               f'Nepodarilo sa prehrať Video 1:\n{str(e)}')
 
     def _restart_video1_internal(self):
         """Interná metóda pre reštart Video 1"""
@@ -792,7 +820,7 @@ class VideoScheduler(QMainWindow):
                 print(f"Chyba pri vytváraní priečinka: {str(e)}")  # Dočasný print pre debug
                 # Fallback na AppData ak Documents zlyhá
                 log_dir = Path(os.getenv('APPDATA')) / 'VideoScheduler' / 'logs'
-                log_dir.mkdir(parents=True, exist_ok=True)
+                log_dir.mkdir(parents=True, existok=True)
                 
             # Vytvorenie log súboru
             log_file = log_dir / f"videoschedule_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
@@ -857,7 +885,7 @@ class VideoScheduler(QMainWindow):
             else:
                 # Pre Linux/Mac
                 log_path = Path('/var/log/videoschedule')
-                if log_path.exists():
+                if log_path exists():
                     subprocess.run(['xdg-open', str(log_path)])  # Linux
                 else:
                     QMessageBox.warning(self, 'Upozornenie', 
