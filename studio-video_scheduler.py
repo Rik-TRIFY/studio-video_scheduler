@@ -20,7 +20,7 @@ from PyQt5.QtGui import QIcon
 import subprocess
 
 # Na začiatku súboru pridáme konštantu pre verziu
-APP_VERSION = "1.22.8"  # Tu meníme verziu pre celú aplikáciu
+APP_VERSION = "1.22.9"  # Tu meníme verziu pre celú aplikáciu
 
 class LicenseManager:
     def __init__(self):
@@ -231,6 +231,17 @@ class VideoScheduler(QMainWindow):
         
         self.setWindowIcon(QIcon('icon.ico'))  # Pridajte ikonu do rovnakého priečinka ako .py súbor
         
+        # Pridáme sledovanie celkovej dĺžky videa
+        self.video1_duration = 0
+        
+        # Pridáme timer pre kontrolu konca videa
+        self.video1_check_timer = QTimer()
+        self.video1_check_timer.timeout.connect(self.check_video1_end)
+        
+        # Pridáme handler pre zatvorenie aplikácie
+        self.app = QApplication.instance()
+        self.app.aboutToQuit.connect(self.on_close)
+        
     def init_ui(self):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -378,14 +389,22 @@ class VideoScheduler(QMainWindow):
     
     def start_playback(self):
         if self.video1_path:
+            self.logger.info("Používateľ stlačil tlačidlo ŠTART")
             self.play_video1()
             self.start_btn.setEnabled(False)
             self.stop_btn.setEnabled(True)
     
     def stop_playback(self):
+        self.logger.info("Používateľ stlačil tlačidlo STOP")
         self.player.stop()
+        self.video1_check_timer.stop()
         self.start_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
+    
+    def on_close(self):
+        self.logger.info("Aplikácia sa vypína")
+        self.player.stop()
+        self.video1_check_timer.stop()
     
     def play_video1(self, resume=True):
         try:
@@ -402,8 +421,10 @@ class VideoScheduler(QMainWindow):
             media.parse()
             self.player.set_media(media)
             
-            duration_ms = media.get_duration()
-            self.logger.info(f"Dĺžka Video 1: {duration_ms/1000} sekúnd")
+            # Uložíme si dĺžku videa
+            self.video1_duration = media.get_duration()
+            duration_sec = self.video1_duration / 1000
+            self.logger.info(f"Dĺžka Video 1: {duration_sec} sekúnd")
             
             # Ak máme pokračovať z uloženej pozície
             if resume and self.video1_position > 0:
@@ -416,18 +437,12 @@ class VideoScheduler(QMainWindow):
             self.player.play()
             self.current_video = 1
             
-            def replay(event):
-                self.logger.info("="*30)
-                self.logger.info("Video 1 dosiahlo koniec")
-                current_pos = self.player.get_position()
-                self.logger.info(f"Posledná pozícia pred reštartom: {current_pos}")
-                
-                if self.current_video == 1:
-                    self.logger.info("Spúšťam reštart Video 1")
-                    QTimer.singleShot(50, lambda: self._restart_video1_internal())
+            # Spustíme kontrolný timer
+            self.video1_check_timer.start(100)  # kontrola každých 100ms
             
-            event_manager = self.player.event_manager()
-            event_manager.event_attach(vlc.EventType.MediaPlayerEndReached, replay)
+            # Odstránime starý event handler
+            # event_manager = self.player.event_manager()
+            # event_manager.event_attach(vlc.EventType.MediaPlayerEndReached, replay)
             self.logger.info("Event handler pre koniec videa pripojený")
             self.logger.info("="*50)
             
@@ -437,6 +452,18 @@ class VideoScheduler(QMainWindow):
             self.logger.error("!!!"*20)
             QMessageBox.critical(self, 'Chyba',
                                f'Nepodarilo sa prehrať Video 1:\n{str(e)}')
+
+    def check_video1_end(self):
+        """Kontroluje či video1 dosiahlo koniec a reštartuje ho"""
+        if self.current_video != 1 or not self.player.is_playing():
+            return
+            
+        current_time = self.player.get_time()
+        if current_time >= self.video1_duration - 100:  # 100ms pred koncom
+            self.logger.info("Video 1 sa blíži ku koncu, reštartujem")
+            self.player.set_position(0.0)
+            self.player.play()
+            self.logger.info("Video 1 reštartované od začiatku")
 
     def _restart_video1_internal(self):
         """Interná metóda pre reštart Video 1"""
@@ -508,6 +535,9 @@ class VideoScheduler(QMainWindow):
             self.player.play()
             self.current_video = 2
             
+            # Vypneme kontrolný timer počas Video 2
+            self.video1_check_timer.stop()
+            
             # Vypočítame presné časy pre logovanie a informačný panel
             start_time = datetime.now()
             duration_ms = media.get_duration()
@@ -545,6 +575,9 @@ class VideoScheduler(QMainWindow):
             # Spustíme prehrávanie
             self.player.play()
             self.current_video = 1
+            
+            # Spustíme kontrolný timer
+            self.video1_check_timer.start(100)
             
             # Zachováme informačný panel
             self.video2_info_label.setText(self.calculate_end_times())
@@ -613,6 +646,9 @@ class VideoScheduler(QMainWindow):
             self.player.play()
             self.current_video = 2
             
+            # Vypneme kontrolný timer počas Video 2
+            self.video1_check_timer.stop()
+            
             # Naplánujeme návrat na Video 1
             resume_time = int(duration_sec * 1000)
             self.logger.info(f"Plánovanie návratu na Video 1 za {resume_time}ms")
@@ -644,6 +680,9 @@ class VideoScheduler(QMainWindow):
             self.current_video = 1
             
             self.logger.info("Video 1 úspešne obnovené a spustené")
+            
+            # Spustíme kontrolný timer
+            self.video1_check_timer.start(100)
             
             # Kontrola pozície po spustení
             def verify_position():
@@ -812,7 +851,7 @@ class VideoScheduler(QMainWindow):
             # Nastavenie logovania
             logging.basicConfig(
                 level=logging.INFO,
-                format='%(asctime)s - %(levelname)s - %(message)s',
+                format='%(asctime)s - %(levellevel)s - %(message)s',
                 handlers=[
                     logging.FileHandler(log_file, encoding='utf-8'),
                     logging.StreamHandler()
