@@ -184,13 +184,10 @@ class VideoScheduler(QMainWindow):
         self.logger.info("Aplikácia sa spúšťa")
         
         # Nastavíme ikonu hneď na začiatku
-        self.setup_icon()
+        if not self.setup_icon():
+            self.logger.warning("Nepodarilo sa nastaviť ikonu aplikácie")
         
         self.license_manager = LicenseManager()
-        
-        # Presunieme nastavenie ikony pred vytvorenie UI
-        if not self.setup_application_icon():
-            self.logger.warning("Nepodarilo sa nastaviť ikonu aplikácie")
         
         # Pridáme menu s aktiváciou
         self.setup_menu()
@@ -250,58 +247,45 @@ class VideoScheduler(QMainWindow):
         self.app = QApplication.instance()
         self.app.aboutToQuit.connect(self.on_close)
         
-    def setup_application_icon(self):
-        """Nastaví ikonu aplikácie pre všetky kontexty"""
-        try:
-            # Získame cestu k ikone
-            icon_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'icon.ico'))
-            
-            if not os.path.exists(icon_path):
-                self.logger.error(f"Súbor s ikonou neexistuje: {icon_path}")
-                return False
-            
-            # Vytvoríme QIcon
-            app_icon = QIcon(icon_path)
-            
-            # Nastavíme ikonu pre aplikáciu
-            QApplication.instance().setWindowIcon(app_icon)
-            
-            # Nastavíme ikonu pre hlavné okno
-            self.setWindowIcon(app_icon)
-            
-            self.logger.info(f"Ikona aplikácie úspešne nastavená z: {icon_path}")
-            return True
-            
-        except Exception as e:
-            self.logger.error(f"Chyba pri nastavovaní ikony: {str(e)}")
-            return False
-
     def setup_icon(self):
         """Nastaví ikonu aplikácie"""
         try:
-            possible_paths = [
-                # 1. Lokálny priečinok programu
-                Path(os.path.dirname(os.path.abspath(__file__))) / 'icon.ico',
-                # 2. AppData priečinok
-                Path(os.getenv('APPDATA')) / 'VideoScheduler' / 'icon.ico',
-                # 3. Documents priečinok
-                Path(os.path.expanduser("~/Documents")) / 'VideoScheduler' / 'icon.ico'
-            ]
+            # Definujeme base path pre ikony
+            base_path = Path(os.path.expanduser("~/Documents/VideoScheduler/resources/icons"))
             
-            icon_path = None
-            for path in possible_paths:
-                if path.exists():
-                    icon_path = path
-                    break
+            # Definujeme mapu veľkostí ikon a ich použitie
+            icon_sizes = {
+                16: "icon16.ico",  # Pre menu a systray
+                24: "icon24.ico",  # Pre windows toolbar
+                32: "icon32.ico",  # Pre file explorer
+                48: "icon48.ico",  # Pre desktop
+                256: "icon256.ico" # Pre Windows Alt+Tab a task manager
+            }
             
-            if icon_path:
-                icon = QIcon(str(icon_path))
+            # Vytvoríme QIcon
+            icon = QIcon()
+            loaded_sizes = []
+            
+            # Pridáme všetky dostupné veľkosti
+            for size, filename in icon_sizes.items():
+                icon_path = base_path / filename
+                if icon_path.exists():
+                    icon.addFile(str(icon_path), QSize(size, size))
+                    loaded_sizes.append(size)
+                    self.logger.info(f"Načítaná ikona {size}x{size} z: {icon_path}")
+            
+            if loaded_sizes:
+                # Nastavíme ikonu pre aplikáciu
                 QApplication.instance().setWindowIcon(icon)
                 self.setWindowIcon(icon)
-                self.logger.info(f"Ikona nastavená z: {icon_path}")
+                self.logger.info(f"Ikony úspešne nastavené pre veľkosti: {loaded_sizes}")
                 return True
-            
-            self.logger.warning("Ikona nenájdená v žiadnom priečinku")
+                
+            self.logger.error("Nenašla sa žiadna ikona!")
+            self.logger.info("Hľadané cesty:")
+            for size, filename in icon_sizes.items():
+                path = base_path / filename
+                self.logger.info(f"  - {path} (exists: {path.exists()})")
             return False
             
         except Exception as e:
@@ -1101,6 +1085,11 @@ class VideoScheduler(QMainWindow):
 
         dialog.setLayout(layout)
 
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    window = VideoScheduler()
+    window.show()
+    sys.exit(app.exec_())
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     window = VideoScheduler()
