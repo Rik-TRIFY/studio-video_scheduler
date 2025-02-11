@@ -21,7 +21,7 @@ import subprocess
 from shutil import copyfile
 
 # Na začiatku súboru pridáme konštantu pre verziu
-APP_VERSION = "1.22.12.3"  # Tu meníme verziu pre celú aplikáciu
+APP_VERSION = "1.22.12.4"  # Tu meníme verziu pre celú aplikáciu
 
 class LicenseManager:
     def __init__(self):
@@ -943,13 +943,20 @@ class VideoScheduler(QMainWindow):
             self.icon_path = self.resources_dir / 'icon.ico'
             if not self.icon_path.exists():
                 try:
-                    source_icon = Path(os.path.dirname(os.path.abspath(__file__))) / 'icon.ico'
+                    # Najprv skúsime nájsť ikonu v resources priečinku programu
+                    source_icon = Path(os.path.dirname(os.path.abspath(__file__))) / 'resources' / 'icon.ico'
+                    if not source_icon.exists():
+                        # Ak nie je v resources, skúsime hlavný priečinok
+                        source_icon = Path(os.path.dirname(os.path.abspath(__file__))) / 'icon.ico'
+                    
                     if source_icon.exists():
                         copyfile(source_icon, self.icon_path)
                         print(f"Ikona skopírovaná do: {self.icon_path}")
+                    else:
+                        print("Nenašla sa zdrojová ikona!")
                 except Exception as e:
                     print(f"Chyba pri kopírovaní ikony: {str(e)}")
-
+            
             # Vytvoríme logger až potom
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             log_file = self.log_dir / f"videoschedule_{timestamp}.log"
