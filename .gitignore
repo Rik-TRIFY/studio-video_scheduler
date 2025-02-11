@@ -1,32 +1,18 @@
 # Python
 __pycache__/
 *.py[cod]
-*.so
-env/
-venv/
-.env
-.venv
-
-# VS Code
-.vscode/
-*.code-workspace
-
-# IDE
-.idea/
-
-# Windows
-Thumbs.db
-Desktop.ini
-
-# Logs
-*.log
 
 # Build
 build/
 dist/
 *.spec
 
-# Keep resources
+# Logs a dočasné súbory
+*.log
+.DS_Store
+Thumbs.db
+
+# Allow resources
 !resources/
 !resources/icons/
 !resources/icons/*.ico
