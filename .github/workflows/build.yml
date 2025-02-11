@@ -12,8 +12,6 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0  # Toto stiahne všetky súbory vrátane resources priečinka
     
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -27,8 +25,7 @@ jobs:
 
     - name: Build with Nuitka
       run: |
-        dir resources\icons
-        python -m nuitka --mingw64 --windows-disable-console --onefile --assume-yes-for-downloads --include-package=requests --include-package=PyQt5 --include-package=vlc --include-qt-plugins=platforms,styles --enable-plugin=pyqt5 --windows-icon-from-ico=icon.ico --include-data-dir=resources --include-data-files=icon.ico=icon.ico --include-data-files=version_info.txt=version_info.txt --include-data-files=app.manifest=app.manifest studio-video_scheduler.py
+        python -m nuitka --mingw64 --windows-disable-console --onefile --assume-yes-for-downloads --include-package=requests --include-package=PyQt5 --include-package=vlc --include-qt-plugins=platforms,styles --enable-plugin=pyqt5 --windows-icon-from-ico=./resources/icons/icon.ico --include-data-dir=resources --include-data-files=version_info.txt=version_info.txt --include-data-files=app.manifest=app.manifest studio-video_scheduler.py
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4
