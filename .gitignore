@@ -16,3 +16,6 @@ Thumbs.db
 !resources/
 !resources/icons/
 !resources/icons/*.ico
+.DS_Store
+.DS_Store?
+.DS_Store?
