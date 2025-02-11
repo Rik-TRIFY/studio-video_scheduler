@@ -1,21 +1,8 @@
-# Python
 __pycache__/
 *.py[cod]
-
-# Build
 build/
 dist/
 *.spec
-
-# Logs a dočasné súbory
 *.log
 .DS_Store
 Thumbs.db
-
-# Allow resources
-!resources/
-!resources/icons/
-!resources/icons/*.ico
-.DS_Store
-.DS_Store?
-.DS_Store?
