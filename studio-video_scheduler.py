@@ -279,31 +279,31 @@ class VideoScheduler(QMainWindow):
     def setup_icon(self):
         """Nastaví ikonu aplikácie"""
         try:
-            # Najprv skúsime použiť ikonu z resources
-            if hasattr(self, 'icon_path') and self.icon_path.exists():
-                icon = QIcon(str(self.icon_path))
-            else:
-                # Ak nie je v resources, skúsime originálnu
-                icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'icon.ico')
-                if os.path.exists(icon_path):
-                    icon = QIcon(icon_path)
-                    # Skopírujeme ju do resources pre budúce použitie
-                    if hasattr(self, 'resources_dir'):
-                        try:
-                            copyfile(icon_path, self.resources_dir / 'icon.ico')
-                            self.icon_path = self.resources_dir / 'icon.ico'
-                            self.logger.info(f"Ikona skopírovaná do resources: {self.icon_path}")
-                        except Exception as e:
-                            self.logger.error(f"Nepodarilo sa skopírovať ikonu: {e}")
-                else:
-                    self.logger.error("Ikona nenájdená!")
-                    return
-
-            # Nastavíme ikonu
-            QApplication.instance().setWindowIcon(icon)
-            self.setWindowIcon(icon)
-            self.logger.info("Ikona úspešne nastavená")
+            # Získame cestu k resources/icons
+            base_path = Path(os.path.dirname(os.path.abspath(__file__)))
+            icons_path = base_path / 'resources' / 'icons'
             
+            # Ak existuje kombinovaná ikona, použijeme ju
+            combined_icon = icons_path / 'icon.ico'
+            if combined_icon.exists():
+                icon = QIcon(str(combined_icon))
+            else:
+                # Inak načítame jednotlivé veľkosti
+                icon = QIcon()
+                sizes = [16, 24, 32, 48, 256]
+                for size in sizes:
+                    icon_path = icons_path / f'icon{size}.ico'
+                    if icon_path.exists():
+                        icon.addFile(str(icon_path), QSize(size, size))
+            
+            if not icon.isNull():
+                # Nastavíme ikonu pre aplikáciu
+                QApplication.instance().setWindowIcon(icon)
+                self.setWindowIcon(icon)
+                self.logger.info("Ikona úspešne nastavená")
+            else:
+                self.logger.error("Nepodarilo sa načítať ikony")
+                
         except Exception as e:
             self.logger.error(f"Chyba pri nastavovaní ikony: {str(e)}")
 
