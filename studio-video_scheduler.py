@@ -279,36 +279,31 @@ class VideoScheduler(QMainWindow):
     def setup_icon(self):
         """Nastaví ikonu aplikácie"""
         try:
-            # Získame cestu k icons priečinku
-            base_path = Path(os.path.dirname(os.path.abspath(__file__)))
-            icons_path = base_path / 'resources' / 'icons'
+            possible_paths = [
+                # 1. Lokálny priečinok programu
+                Path(os.path.dirname(os.path.abspath(__file__))) / 'icon.ico',
+                # 2. AppData priečinok
+                Path(os.getenv('APPDATA')) / 'VideoScheduler' / 'icon.ico',
+                # 3. Documents priečinok
+                Path(os.path.expanduser("~/Documents")) / 'VideoScheduler' / 'icon.ico'
+            ]
             
-            # Skúsime načítať hlavnú kombinovanú ikonu
-            combined_icon = icons_path / 'icon.ico'
-            if combined_icon.exists():
-                icon = QIcon(str(combined_icon))
-                self.logger.info(f"Načítaná kombinovaná ikona: {combined_icon}")
-            else:
-                # Ak nie je kombinovaná, načítame samostatné veľkosti
-                icon = QIcon()
-                sizes = [16, 24, 32, 48, 256]
-                loaded_sizes = []
-                for size in sizes:
-                    icon_path = icons_path / f'icon{size}.ico'
-                    if icon_path.exists():
-                        icon.addFile(str(icon_path), QSize(size, size))
-                        loaded_sizes.append(size)
-                self.logger.info(f"Načítané ikony veľkostí: {loaded_sizes}")
+            icon_path = None
+            for path in possible_paths:
+                if path.exists():
+                    icon_path = path
+                    break
             
-            if not icon.isNull():
+            if icon_path:
+                icon = QIcon(str(icon_path))
                 QApplication.instance().setWindowIcon(icon)
                 self.setWindowIcon(icon)
-                self.logger.info("Ikona úspešne nastavená")
+                self.logger.info(f"Ikona nastavená z: {icon_path}")
                 return True
-            else:
-                self.logger.error("Nepodarilo sa načítať žiadnu ikonu")
-                return False
-                
+            
+            self.logger.warning("Ikona nenájdená v žiadnom priečinku")
+            return False
+            
         except Exception as e:
             self.logger.error(f"Chyba pri nastavovaní ikony: {str(e)}")
             return False
