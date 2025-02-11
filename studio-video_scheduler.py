@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QPushButton, QWidget,
                             QVBoxLayout, QHBoxLayout, QFileDialog, QLabel, 
                             QTimeEdit, QCheckBox, QListWidget, QMessageBox,
                             QInputDialog, QLineEdit, QDialog, QDialogButtonBox)
-from PyQt5.QtCore import QTime, QTimer
+from PyQt5.QtCore import QTime, QTimer, QSize  # pridáme QSize do importov
 from datetime import datetime, timedelta
 import logging
 from PyQt5.QtWidgets import QAction
@@ -250,16 +250,14 @@ class VideoScheduler(QMainWindow):
     def setup_icon(self):
         """Nastaví ikonu aplikácie"""
         try:
-            # Definujeme base path pre ikony
-            base_path = Path(os.path.expanduser("~/Documents/VideoScheduler/resources/icons"))
-            
-            # Definujeme mapu veľkostí ikon a ich použitie
-            icon_sizes = {
-                16: "icon16.ico",  # Pre menu a systray
-                24: "icon24.ico",  # Pre windows toolbar
-                32: "icon32.ico",  # Pre file explorer
-                48: "icon48.ico",  # Pre desktop
-                256: "icon256.ico" # Pre Windows Alt+Tab a task manager
+            # Definujeme base paths
+            docs_path = Path(os.path.expanduser("~/Documents/VideoScheduler"))
+            icon_paths = {
+                16: docs_path / 'resources/icons/icon16.ico',  # Pre menu a systray
+                24: docs_path / 'resources/icons/icon24.ico',  # Pre windows toolbar
+                32: docs_path / 'resources/icons/icon32.ico',  # Pre file explorer
+                48: docs_path / 'resources/icons/icon48.ico',  # Pre desktop
+                256: docs_path / 'resources/icons/icon256.ico'  # Pre Windows Alt+Tab a task manager
             }
             
             # Vytvoríme QIcon
@@ -267,12 +265,11 @@ class VideoScheduler(QMainWindow):
             loaded_sizes = []
             
             # Pridáme všetky dostupné veľkosti
-            for size, filename in icon_sizes.items():
-                icon_path = base_path / filename
-                if icon_path.exists():
-                    icon.addFile(str(icon_path), QSize(size, size))
+            for size, path in icon_paths.items():
+                if path.exists():
+                    icon.addFile(str(path), QSize(size, size))
                     loaded_sizes.append(size)
-                    self.logger.info(f"Načítaná ikona {size}x{size} z: {icon_path}")
+                    self.logger.info(f"Načítaná ikona {size}x{size} z: {path}")
             
             if loaded_sizes:
                 # Nastavíme ikonu pre aplikáciu
@@ -280,11 +277,10 @@ class VideoScheduler(QMainWindow):
                 self.setWindowIcon(icon)
                 self.logger.info(f"Ikony úspešne nastavené pre veľkosti: {loaded_sizes}")
                 return True
-                
+            
             self.logger.error("Nenašla sa žiadna ikona!")
             self.logger.info("Hľadané cesty:")
-            for size, filename in icon_sizes.items():
-                path = base_path / filename
+            for size, path in icon_paths.items():
                 self.logger.info(f"  - {path} (exists: {path.exists()})")
             return False
             
@@ -587,7 +583,7 @@ class VideoScheduler(QMainWindow):
             self.logger.info("-"*30)
             
         except Exception as e:
-            self.logger.error(f"Chyba pri verifikácii reštartu: {str(e)}", exc_info=True)
+            self.logger.error(f"Chyba pri verifikácii reštartu: {str(e)}")
 
     def restart_video1(self):
         """Metóda pre reštart Video 1 od začiatku"""
