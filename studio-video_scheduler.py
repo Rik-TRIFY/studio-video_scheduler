@@ -21,7 +21,7 @@ import subprocess
 from shutil import copyfile
 
 # Na začiatku súboru pridáme konštantu pre verziu
-APP_VERSION = "1.22.12.2"  # Tu meníme verziu pre celú aplikáciu
+APP_VERSION = "1.22.12.3"  # Tu meníme verziu pre celú aplikáciu
 
 class LicenseManager:
     def __init__(self):
@@ -279,15 +279,31 @@ class VideoScheduler(QMainWindow):
     def setup_icon(self):
         """Nastaví ikonu aplikácie"""
         try:
+            # Najprv skúsime použiť ikonu z resources
             if hasattr(self, 'icon_path') and self.icon_path.exists():
                 icon = QIcon(str(self.icon_path))
-                # Nastavíme ikonu globálne pre celú aplikáciu
-                QApplication.instance().setWindowIcon(icon)
-                # Nastavíme ikonu pre hlavné okno
-                self.setWindowIcon(icon)
-                self.logger.info(f"Ikona nastavená z: {self.icon_path}")
             else:
-                self.logger.error("Ikona nenájdená v resources priečinku")
+                # Ak nie je v resources, skúsime originálnu
+                icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'icon.ico')
+                if os.path.exists(icon_path):
+                    icon = QIcon(icon_path)
+                    # Skopírujeme ju do resources pre budúce použitie
+                    if hasattr(self, 'resources_dir'):
+                        try:
+                            copyfile(icon_path, self.resources_dir / 'icon.ico')
+                            self.icon_path = self.resources_dir / 'icon.ico'
+                            self.logger.info(f"Ikona skopírovaná do resources: {self.icon_path}")
+                        except Exception as e:
+                            self.logger.error(f"Nepodarilo sa skopírovať ikonu: {e}")
+                else:
+                    self.logger.error("Ikona nenájdená!")
+                    return
+
+            # Nastavíme ikonu
+            QApplication.instance().setWindowIcon(icon)
+            self.setWindowIcon(icon)
+            self.logger.info("Ikona úspešne nastavená")
+            
         except Exception as e:
             self.logger.error(f"Chyba pri nastavovaní ikony: {str(e)}")
 
@@ -909,31 +925,34 @@ class VideoScheduler(QMainWindow):
 
     def setup_logging(self):
         try:
+            # Najprv vytvoríme základné priečinky
             if platform.system() == 'Windows':
                 documents_path = Path(os.path.expanduser("~/Documents"))
                 self.app_dir = documents_path / 'VideoScheduler'
-                log_dir = self.app_dir / 'logs'
-                resources_dir = self.app_dir / 'resources'
             else:
                 self.app_dir = Path('/var/log/videoschedule')
-                log_dir = self.app_dir / 'logs'
-                resources_dir = self.app_dir / 'resources'
+
+            self.log_dir = self.app_dir / 'logs'
+            self.resources_dir = self.app_dir / 'resources'
             
             # Vytvoríme potrebné priečinky
-            log_dir.mkdir(parents=True, exist_ok=True)
-            resources_dir.mkdir(parents=True, exist_ok=True)
+            self.log_dir.mkdir(parents=True, exist_ok=True)
+            self.resources_dir.mkdir(parents=True, exist_ok=True)
             
-            # Skopírujeme ikonu do resources priečinka
-            self.icon_path = resources_dir / 'icon.ico'
+            # Skopírujeme ikonu do resources ak ešte neexistuje
+            self.icon_path = self.resources_dir / 'icon.ico'
             if not self.icon_path.exists():
-                source_icon = Path(os.path.dirname(os.path.abspath(__file__))) / 'icon.ico'
-                if source_icon.exists():
-                    copyfile(source_icon, self.icon_path)
-                    self.logger.info(f"Ikona skopírovaná do: {self.icon_path}")
-            
-            # Vytvoríme log súbor s aktuálnym časom
+                try:
+                    source_icon = Path(os.path.dirname(os.path.abspath(__file__))) / 'icon.ico'
+                    if source_icon.exists():
+                        copyfile(source_icon, self.icon_path)
+                        print(f"Ikona skopírovaná do: {self.icon_path}")
+                except Exception as e:
+                    print(f"Chyba pri kopírovaní ikony: {str(e)}")
+
+            # Vytvoríme logger až potom
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            log_file = log_dir / f"videoschedule_{timestamp}.log"
+            log_file = self.log_dir / f"videoschedule_{timestamp}.log"
             
             # Vytvoríme handler pre súbor
             file_handler = logging.FileHandler(log_file, mode='w', encoding='utf-8')
@@ -966,6 +985,13 @@ class VideoScheduler(QMainWindow):
             self.logger.info("="*50)
             self.logger.info("Logovanie inicializované")
             self.logger.info(f"Logy sa ukladajú do: {log_file}")
+            
+            # Pridáme informáciu o resources
+            self.logger.info(f"Resources priečinok: {self.resources_dir}")
+            if self.icon_path.exists():
+                self.logger.info(f"Ikona je v: {self.icon_path}")
+            else:
+                self.logger.error("Ikona nebola nájdená!")
             
         except Exception as e:
             print(f"Kritická chyba pri nastavovaní: {str(e)}")
