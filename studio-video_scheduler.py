@@ -21,7 +21,7 @@ import subprocess
 from shutil import copyfile
 
 # Na začiatku súboru pridáme konštantu pre verziu
-APP_VERSION = "1.22.12.4"  # Tu meníme verziu pre celú aplikáciu
+APP_VERSION = "1.22.12.5"  # Tu meníme verziu pre celú aplikáciu
 
 class LicenseManager:
     def __init__(self):
