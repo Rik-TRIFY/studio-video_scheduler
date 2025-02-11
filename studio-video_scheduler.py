@@ -18,9 +18,10 @@ import requests
 import re
 from PyQt5.QtGui import QIcon
 import subprocess
+from shutil import copyfile
 
 # Na začiatku súboru pridáme konštantu pre verziu
-APP_VERSION = "1.22.12.1"  # Tu meníme verziu pre celú aplikáciu
+APP_VERSION = "1.22.12.2"  # Tu meníme verziu pre celú aplikáciu
 
 class LicenseManager:
     def __init__(self):
@@ -278,19 +279,15 @@ class VideoScheduler(QMainWindow):
     def setup_icon(self):
         """Nastaví ikonu aplikácie"""
         try:
-            # Získame absolútnu cestu k ikone
-            base_path = os.path.dirname(os.path.abspath(__file__))
-            icon_path = os.path.join(base_path, 'icon.ico')
-            
-            if os.path.exists(icon_path):
-                icon = QIcon(icon_path)
+            if hasattr(self, 'icon_path') and self.icon_path.exists():
+                icon = QIcon(str(self.icon_path))
                 # Nastavíme ikonu globálne pre celú aplikáciu
                 QApplication.instance().setWindowIcon(icon)
                 # Nastavíme ikonu pre hlavné okno
                 self.setWindowIcon(icon)
-                self.logger.info(f"Ikona nastavená z: {icon_path}")
+                self.logger.info(f"Ikona nastavená z: {self.icon_path}")
             else:
-                self.logger.error(f"Ikona nenájdená: {icon_path}")
+                self.logger.error("Ikona nenájdená v resources priečinku")
         except Exception as e:
             self.logger.error(f"Chyba pri nastavovaní ikony: {str(e)}")
 
@@ -914,12 +911,25 @@ class VideoScheduler(QMainWindow):
         try:
             if platform.system() == 'Windows':
                 documents_path = Path(os.path.expanduser("~/Documents"))
-                log_dir = documents_path / 'VideoScheduler' / 'logs'
+                self.app_dir = documents_path / 'VideoScheduler'
+                log_dir = self.app_dir / 'logs'
+                resources_dir = self.app_dir / 'resources'
             else:
-                log_dir = Path('/var/log/videoschedule')
+                self.app_dir = Path('/var/log/videoschedule')
+                log_dir = self.app_dir / 'logs'
+                resources_dir = self.app_dir / 'resources'
             
-            # Vytvoríme priečinok pre logy
+            # Vytvoríme potrebné priečinky
             log_dir.mkdir(parents=True, exist_ok=True)
+            resources_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Skopírujeme ikonu do resources priečinka
+            self.icon_path = resources_dir / 'icon.ico'
+            if not self.icon_path.exists():
+                source_icon = Path(os.path.dirname(os.path.abspath(__file__))) / 'icon.ico'
+                if source_icon.exists():
+                    copyfile(source_icon, self.icon_path)
+                    self.logger.info(f"Ikona skopírovaná do: {self.icon_path}")
             
             # Vytvoríme log súbor s aktuálnym časom
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -958,8 +968,7 @@ class VideoScheduler(QMainWindow):
             self.logger.info(f"Logy sa ukladajú do: {log_file}")
             
         except Exception as e:
-            print(f"Kritická chyba pri nastavovaní logovania: {str(e)}")
-            # Fallback na základné konsolové logovanie
+            print(f"Kritická chyba pri nastavovaní: {str(e)}")
             self.logger = logging.getLogger('VideoScheduler')
             self.logger.addHandler(logging.StreamHandler())
             self.logger.setLevel(logging.INFO)
