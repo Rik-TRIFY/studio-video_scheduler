@@ -23,21 +23,13 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install -r requirements.txt
 
-    - name: Prepare directories
-      run: |
-        mkdir -p resources\icons
-        if not exist "resources\icons\icon.ico" (
-          echo "Error: icon.ico not found!"
-          exit 1
-        )
-
     - name: Build main application
       run: |
-        python -m nuitka --mingw64 --windows-icon-from-ico=resources/icons/icon.ico --enable-plugin=pyqt5 --onefile --windows-uac-admin --windows-company-name="TRIFY s.r.o." --windows-product-name="Video Scheduler" --windows-file-version="1.22.12.5" --windows-product-version="1.22.12.5" --windows-file-description="TRIFY Video Scheduler" --include-package=requests --include-package=PyQt5 --include-package=vlc --include-qt-plugins=platforms,styles --include-data-dir=resources=resources studio-video_scheduler.py
+        python -m nuitka --mingw64 --enable-plugin=pyqt5 --onefile --windows-uac-admin --windows-company-name="TRIFY s.r.o." --windows-product-name="Video Scheduler" --windows-file-version="1.22.12.5" --windows-product-version="1.22.12.5" --windows-file-description="TRIFY Video Scheduler" --include-package=requests --include-package=PyQt5 --include-package=vlc --include-qt-plugins=platforms,styles --include-data-dir=resources=resources studio-video_scheduler.py
 
     - name: Build setup checker
       run: |
-        python -m nuitka --mingw64 --windows-icon-from-ico=resources/icons/icon.ico --enable-plugin=pyqt5 --onefile --windows-company-name="TRIFY s.r.o." --windows-product-name="Video Scheduler Setup" --windows-file-version="1.22.12.5" --windows-product-version="1.22.12.5" --windows-file-description="TRIFY Video Scheduler Setup" --include-package=PyQt5 --include-qt-plugins=platforms,styles check_install.py
+        python -m nuitka --mingw64 --enable-plugin=pyqt5 --onefile --windows-company-name="TRIFY s.r.o." --windows-product-name="Video Scheduler Setup" --windows-file-version="1.22.12.5" --windows-product-version="1.22.12.5" --windows-file-description="TRIFY Video Scheduler Setup" --include-package=PyQt5 --include-qt-plugins=platforms,styles check_install.py
 
     - name: Create release package
       run: |
