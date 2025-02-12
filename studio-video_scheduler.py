@@ -977,6 +977,11 @@ class VideoScheduler(QMainWindow):
         menubar = self.menuBar()
         help_menu = menubar.addMenu('Pomoc')
         
+        # Pridáme položku pre vyčistenie cache
+        clear_cache_action = QAction('Vyčistiť icon cache', self)
+        clear_cache_action.triggered.connect(self.clear_icon_cache)
+        help_menu.addAction(clear_cache_action)
+        
         # Aktivačná akcia
         activate_action = QAction('Aktivovať produkt', self)
         activate_action.triggered.connect(self.show_activation_dialog)
@@ -991,6 +996,59 @@ class VideoScheduler(QMainWindow):
         about_action = QAction('O programe', self)
         about_action.triggered.connect(self.show_about_dialog)
         help_menu.addAction(about_action)
+
+    def clear_icon_cache(self):
+        try:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Warning)
+            msg.setText("Táto operácia:\n"
+                       "1. Vyžaduje administrátorské práva\n"
+                       "2. Zatvorí Windows Explorer\n"
+                       "3. Vyžaduje reštart počítača\n\n"
+                       "Chcete pokračovať?")
+            msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            
+            if msg.exec_() == QMessageBox.Yes:
+                try:
+                    # Zastavíme Windows Explorer
+                    subprocess.run(['taskkill', '/F', '/IM', 'explorer.exe'], 
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    
+                    # Vymažeme cache súbory
+                    cache_paths = [
+                        Path(os.getenv('LOCALAPPDATA')) / 'IconCache.db',
+                        Path(os.getenv('LOCALAPPDATA')) / 'Microsoft/Windows/Explorer/iconcache*'
+                    ]
+                    
+                    for path in cache_paths:
+                        try:
+                            if isinstance(str(path), str) and '*' in str(path):
+                                for f in Path(os.getenv('LOCALAPPDATA')).glob('Microsoft/Windows/Explorer/iconcache*'):
+                                    f.unlink(missing_ok=True)
+                            elif path.exists():
+                                path.unlink()
+                        except:
+                            pass
+                    
+                    # Vyčistíme systémový icon cache
+                    import win32gui
+                    import win32con
+                    win32gui.SystemParametersInfo(win32con.SPI_SETICONS, 0, 0, 
+                                                win32con.SPIF_UPDATEINIFILE | win32con.SPIF_SENDCHANGE)
+                    
+                    # Reštartujeme Explorer
+                    subprocess.Popen('explorer.exe')
+                    
+                    QMessageBox.information(self, 'Hotovo',
+                                          'Icon cache bol vyčistený.\n\n'
+                                          'Pre aplikovanie zmien reštartujte počítač.')
+                                          
+                except Exception as e:
+                    raise Exception(f"Chyba pri čistení cache: {str(e)}")
+                    
+        except Exception as e:
+            QMessageBox.critical(self, 'Chyba',
+                               f'Nepodarilo sa vyčistiť icon cache:\n{str(e)}')
 
     def open_logs_folder(self):
         """Otvorí priečinok s logmi"""
@@ -1068,16 +1126,46 @@ class VideoScheduler(QMainWindow):
         dialog.setLayout(layout)
 
 if __name__ == '__main__':
-    # Nastavíme AppUserModelID pre Windows ešte pred vytvorením QApplication
-    if platform.system() == 'Windows':
-        try:
+    try:
+        # Windows-specific nastavenia pred vytvorením QApplication
+        if platform.system() == 'Windows':
             import ctypes
+            import win32gui
+            import win32con
+            
+            # Nastavíme AppUserModelID
             myappid = 'trify.videoschedule.1.22.12.5'
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
-        except:
-            pass
-    
-    app = QApplication(sys.argv)
-    window = VideoScheduler()
-    window.show()
-    sys.exit(app.exec_())
+            
+            # Vyčistíme Windows icon cache
+            win32gui.SystemParametersInfo(win32con.SPI_SETICONS, 0, 0, win32con.SPIF_UPDATEINIFILE)
+        
+        # Absolútna cesta k ikone
+        icon_path = str(Path(os.path.expanduser("~/Documents/VideoScheduler/resources/icons/icon.ico")).resolve())
+        
+        # Vytvoríme aplikáciu
+        app = QApplication(sys.argv)
+        
+        # Nastavíme ikonu pre celú aplikáciu
+        if os.path.exists(icon_path):
+            app_icon = QIcon(icon_path)
+            if not app_icon.isNull():
+                app.setWindowIcon(app_icon)
+        
+        # Vytvoríme a zobrazíme okno
+        window = VideoScheduler()
+        window.show()
+        
+        # Force refresh ikon
+        if platform.system() == 'Windows':
+            try:
+                window.setStyle(window.style())
+                window.update()
+            except:
+                pass
+        
+        sys.exit(app.exec_())
+        
+    except Exception as e:
+        print(f"Kritická chyba pri spustení: {str(e)}")
+        sys.exit(1)
