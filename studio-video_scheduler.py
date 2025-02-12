@@ -250,46 +250,24 @@ class VideoScheduler(QMainWindow):
     def setup_icon(self):
         """Nastaví ikonu aplikácie"""
         try:
-            # Definujeme base paths
-            docs_path = Path(os.path.expanduser("~/Documents/VideoScheduler"))
-            icon_paths = {
-                16: docs_path / 'resources/icons/icon16.png',  # Zmenené na .png
-                24: docs_path / 'resources/icons/icon24.png',
-                32: docs_path / 'resources/icons/icon32.png',
-                48: docs_path / 'resources/icons/icon48.png',
-                256: docs_path / 'resources/icons/icon256.png'
-            }
+            # Použijeme jediný .ico súbor
+            icon_path = Path(os.path.expanduser("~/Documents/VideoScheduler/resources/icons/icon.ico"))
             
-            # Vytvoríme QIcon
-            icon = QIcon()
-            loaded_sizes = []
+            if icon_path.exists():
+                icon = QIcon(str(icon_path))
+                if not icon.isNull():
+                    # Nastavíme pre aplikáciu aj okno
+                    app = QApplication.instance()
+                    app.setWindowIcon(icon)
+                    self.setWindowIcon(icon)
+                    
+                    # Force update
+                    self.setStyle(self.style())
+                    
+                    self.logger.info(f"Ikona úspešne nastavená z: {icon_path}")
+                    return True
             
-            # Pridáme všetky dostupné veľkosti
-            for size, path in icon_paths.items():
-                if path.exists():
-                    # Najprv načítame ako QPixmap
-                    pixmap = QPixmap(str(path))
-                    if not pixmap.isNull():
-                        icon.addPixmap(pixmap)
-                        loaded_sizes.append(size)
-                        self.logger.info(f"Načítaná ikona {size}x{size} z: {path}")
-                    else:
-                        self.logger.warning(f"Nepodarilo sa načítať pixmap pre {path}")
-                else:
-                    self.logger.warning(f"Ikona {size}x{size} sa nenašla na ceste: {path}")
-            
-            if loaded_sizes:
-                # Nastavíme ikonu pre aplikáciu
-                self.app = QApplication.instance()
-                self.app.setWindowIcon(icon)  # Nastavíme pre celú aplikáciu
-                self.setWindowIcon(icon)      # Nastavíme pre hlavné okno
-                self.logger.info(f"Ikony úspešne nastavené pre veľkosti: {loaded_sizes}")
-                
-                # Force update window icon
-                self.setStyle(self.style())
-                return True
-                
-            self.logger.error("Nenašla sa žiadna ikona!")
+            self.logger.error(f"Ikona neexistuje: {icon_path}")
             return False
             
         except Exception as e:
@@ -1090,11 +1068,15 @@ class VideoScheduler(QMainWindow):
         dialog.setLayout(layout)
 
 if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    window = VideoScheduler()
-    window.show()
-    sys.exit(app.exec_())
-if __name__ == '__main__':
+    # Nastavíme AppUserModelID pre Windows ešte pred vytvorením QApplication
+    if platform.system() == 'Windows':
+        try:
+            import ctypes
+            myappid = 'trify.videoschedule.1.22.12.5'
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+        except:
+            pass
+    
     app = QApplication(sys.argv)
     window = VideoScheduler()
     window.show()
