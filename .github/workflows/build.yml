@@ -22,18 +22,12 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         python -m pip install -r requirements.txt
-        python -m pip install pillow
 
-    - name: Create resources directories
+    - name: Build main application
       run: |
-        mkdir -p dist/resources/icons
-        python create_icon.py
+        python -m nuitka --mingw64 --windows-icon-from-ico=resources/icons/icon.ico --enable-plugin=pyqt5 --onefile --windows-uac-admin --windows-company-name="TRIFY s.r.o." --windows-product-name="Video Scheduler" --windows-file-version="1.22.12.5" --windows-product-version="1.22.12.5" --windows-file-description="TRIFY Video Scheduler" --include-package=requests --include-package=PyQt5 --include-package=vlc --include-qt-plugins=platforms,styles --include-data-dir=resources=resources studio-video_scheduler.py
 
-    - name: Build with Nuitka
-      run: |
-        python -m nuitka --mingw64 --windows-icon-from-ico=resources/icons/icon.ico --enable-plugin=pyqt5 --onefile --windows-uac-admin --windows-company-name="TRIFY s.r.o." --windows-product-name="Video Scheduler" --windows-file-version="1.22.12.5" --windows-product-version="1.22.12.5" --windows-file-description="TRIFY Video Scheduler" --windows-uac-admin --include-package=requests --include-package=PyQt5 --include-package=vlc --include-qt-plugins=platforms,styles --include-data-files=version_info.txt=version_info.txt --include-data-dir=resources=resources studio-video_scheduler.py
-
-    - name: Build checker with Nuitka
+    - name: Build setup checker
       run: |
         python -m nuitka --mingw64 --windows-icon-from-ico=resources/icons/icon.ico --enable-plugin=pyqt5 --onefile --windows-company-name="TRIFY s.r.o." --windows-product-name="Video Scheduler Setup" --windows-file-version="1.22.12.5" --windows-product-version="1.22.12.5" --windows-file-description="TRIFY Video Scheduler Setup" --include-package=PyQt5 --include-qt-plugins=platforms,styles check_install.py
 
@@ -43,8 +37,7 @@ jobs:
         copy dist\studio-video_scheduler.exe release\VideoScheduler.exe
         copy dist\check_install.exe release\Setup.exe
         xcopy /E /I resources release\resources
-        copy version_info.txt release\
-    
+        
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
