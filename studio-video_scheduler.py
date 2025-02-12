@@ -270,6 +270,8 @@ class VideoScheduler(QMainWindow):
                     icon.addFile(str(path), QSize(size, size))
                     loaded_sizes.append(size)
                     self.logger.info(f"Načítaná ikona {size}x{size} z: {path}")
+                else:
+                    self.logger.warning(f"Ikona {size}x{size} sa nenašla na ceste: {path}")
             
             if loaded_sizes:
                 # Nastavíme ikonu pre aplikáciu
@@ -1065,7 +1067,7 @@ class VideoScheduler(QMainWindow):
         layout.addWidget(email_label)
         layout.addWidget(email_input)
 
-        # Input pre licenčný kľúč
+        # Input pre licenčný kľúc
         key_label = QLabel('Licenčný kľúč:')
         key_input = QLineEdit()
         layout.addWidget(key_label)
