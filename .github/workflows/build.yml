@@ -30,4 +30,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: VideoScheduler
-        path: ./studio-video_scheduler.dist/studio-video_scheduler.exe
+        path: studio-video_scheduler.exe
