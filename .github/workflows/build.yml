@@ -25,7 +25,7 @@ jobs:
 
     - name: Build main application
       run: |
-        python -m nuitka --mingw64 --enable-plugin=pyqt5 --onefile --windows-uac-admin --windows-company-name="TRIFY s.r.o." --windows-product-name="Video Scheduler" --windows-file-version="1.22.12.5" --windows-product-version="1.22.12.5" --windows-file-description="TRIFY Video Scheduler" --include-package=requests --include-package=PyQt5 --include-package=vlc --include-qt-plugins=platforms,styles --include-data-dir=resources=resources studio-video_scheduler.py
+        python -m nuitka --mingw64 --enable-plugin=pyqt5 --onefile --windows-uac-admin --windows-company-name="TRIFY s.r.o." --windows-product-name="Video Scheduler" --windows-file-version="1.22.12.5" --windows-product-version="1.22.12.5" --windows-file-description="TRIFY Video Scheduler" --include-package=requests --include-package=PyQt5 --include-package=vlc --include-qt-plugins=platforms,styles studio-video_scheduler.py
 
     - name: Build setup checker
       run: |
