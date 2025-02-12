@@ -10,13 +10,13 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QPushButton, QWidget,
                             QTimeEdit, QCheckBox, QListWidget, QMessageBox,
                             QInputDialog, QLineEdit, QDialog, QDialogButtonBox)
 from PyQt5.QtCore import QTime, QTimer, QSize  # pridáme QSize do importov
+from PyQt5.QtGui import QIcon, QPixmap  # pridáme QPixmap
 from datetime import datetime, timedelta
 import logging
 from PyQt5.QtWidgets import QAction
 import platform
 import requests
 import re
-from PyQt5.QtGui import QIcon
 import subprocess
 from shutil import copyfile
 
@@ -253,11 +253,11 @@ class VideoScheduler(QMainWindow):
             # Definujeme base paths
             docs_path = Path(os.path.expanduser("~/Documents/VideoScheduler"))
             icon_paths = {
-                16: docs_path / 'resources/icons/icon16.ico',  # Pre menu a systray
-                24: docs_path / 'resources/icons/icon24.ico',  # Pre windows toolbar
-                32: docs_path / 'resources/icons/icon32.ico',  # Pre file explorer
-                48: docs_path / 'resources/icons/icon48.ico',  # Pre desktop
-                256: docs_path / 'resources/icons/icon256.ico'  # Pre Windows Alt+Tab a task manager
+                16: docs_path / 'resources/icons/icon16.png',  # Zmenené na .png
+                24: docs_path / 'resources/icons/icon24.png',
+                32: docs_path / 'resources/icons/icon32.png',
+                48: docs_path / 'resources/icons/icon48.png',
+                256: docs_path / 'resources/icons/icon256.png'
             }
             
             # Vytvoríme QIcon
@@ -267,23 +267,29 @@ class VideoScheduler(QMainWindow):
             # Pridáme všetky dostupné veľkosti
             for size, path in icon_paths.items():
                 if path.exists():
-                    icon.addFile(str(path), QSize(size, size))
-                    loaded_sizes.append(size)
-                    self.logger.info(f"Načítaná ikona {size}x{size} z: {path}")
+                    # Najprv načítame ako QPixmap
+                    pixmap = QPixmap(str(path))
+                    if not pixmap.isNull():
+                        icon.addPixmap(pixmap)
+                        loaded_sizes.append(size)
+                        self.logger.info(f"Načítaná ikona {size}x{size} z: {path}")
+                    else:
+                        self.logger.warning(f"Nepodarilo sa načítať pixmap pre {path}")
                 else:
                     self.logger.warning(f"Ikona {size}x{size} sa nenašla na ceste: {path}")
             
             if loaded_sizes:
                 # Nastavíme ikonu pre aplikáciu
-                QApplication.instance().setWindowIcon(icon)
-                self.setWindowIcon(icon)
+                self.app = QApplication.instance()
+                self.app.setWindowIcon(icon)  # Nastavíme pre celú aplikáciu
+                self.setWindowIcon(icon)      # Nastavíme pre hlavné okno
                 self.logger.info(f"Ikony úspešne nastavené pre veľkosti: {loaded_sizes}")
+                
+                # Force update window icon
+                self.setStyle(self.style())
                 return True
-            
+                
             self.logger.error("Nenašla sa žiadna ikona!")
-            self.logger.info("Hľadané cesty:")
-            for size, path in icon_paths.items():
-                self.logger.info(f"  - {path} (exists: {path.exists()})")
             return False
             
         except Exception as e:
